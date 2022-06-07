@@ -36,6 +36,7 @@
     <usb-device vendor-id="1155" product-id="22336" /><!-- 0x0483 / 0x5740: ST CDC -->
 
     <!-- - - - custom prober - - - -->
+    <usb-device vendor-id="4966" product-id="0261" /> <!-- 0x1366 / 0x0105: SiLabs BGM220x -->
 
     <!-- CDC driver -->
     <usb-device vendor-id="5840" product-id="2174" /> <!-- 0x16d0 / 0x087e: Digispark -->
