@@ -1,12 +1,18 @@
 package de.kai_morich.simple_usb_terminal;
 
 import android.annotation.SuppressLint;
+import android.hardware.SensorManager;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Date;
+
+/**
+ * https://docs.silabs.com/bluetooth/3.2/group-sl-bt-evt-scanner-scan-report
+ */
 
 public class BlePacket {
     private LocalDateTime time;
@@ -19,6 +25,7 @@ public class BlePacket {
     @SuppressLint("NewApi")
     public BlePacket(String addr, byte rssi, byte channel, byte packet_type, byte[] data){
         time = LocalDateTime.now();
+
         this.addr = addr;
         this.rssi = rssi;
         this.channel = channel;
@@ -62,6 +69,11 @@ public class BlePacket {
                 +"\nPacket Type: 0x"+String.format("%02X", packet_type)
                 +"\nData: "+TextUtil.toHexString(data)+
                 "\n";
+    }
+
+    @SuppressLint("NewApi")
+    public String toCSV(){
+        return time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) +","+addr+","+rssi+","+(channel & 0xFF)+","+TextUtil.toHexString(data)+"\n";
     }
 
 

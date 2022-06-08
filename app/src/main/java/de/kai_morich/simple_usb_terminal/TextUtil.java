@@ -55,8 +55,8 @@ final class TextUtil {
 
     static void toHexString(StringBuilder sb, final byte[] buf, int begin, int end) {
         for(int pos=begin; pos<end; pos++) {
-            if(sb.length()>0)
-                sb.append(' ');
+//            if(sb.length()>0)
+//                sb.append(' ');
             int c;
             c = (buf[pos]&0xff) / 16;
             if(c >= 10) c += 'A'-10;

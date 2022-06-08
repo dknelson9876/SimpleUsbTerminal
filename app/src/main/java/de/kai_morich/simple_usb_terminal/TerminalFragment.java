@@ -13,6 +13,7 @@ import android.graphics.Color;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -35,6 +36,7 @@ import android.widget.ToggleButton;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
 import com.hoho.android.usbserial.driver.SerialTimeoutException;
@@ -42,7 +44,14 @@ import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.EnumSet;
 
@@ -60,6 +69,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private ControlLines controlLines;
     private TextUtil.HexWatcher hexWatcher;
     private BlePacket pendingPacket;
+    private FileWriter fw;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
@@ -172,6 +182,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     /*
      * UI
      */
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_terminal, container, false);
@@ -205,7 +216,16 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         stopBtn.setOnClickListener(v -> send(BGapi.STOP_CMD));
 
         View saveBtn = view.findViewById(R.id.save_btn);
-        saveBtn.setOnClickListener(v -> receiveText.append("Click!"));
+        saveBtn.setOnClickListener(v -> onSave());
+
+        File path = getContext().getExternalFilesDir(null);
+        File file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))+"_log.txt");
+        try {
+            fw = new FileWriter(file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        receiveText.append("Writing to "+file.getAbsolutePath()+"\n");
 
         controlLines = new ControlLines(view);
         return view;
@@ -329,6 +349,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         connected = Connected.False;
         controlLines.stop();
         service.disconnect();
+        try {
+            fw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         usbSerialPort = null;
     }
 
@@ -369,6 +394,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     SpannableStringBuilder spn = new SpannableStringBuilder(pendingPacket.toString() + '\n');
                     spn.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                     receiveText.append(spn);
+                    try {
+                        fw.write(pendingPacket.toCSV());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
                 pendingPacket = BlePacket.parsePacket(data);
             } else if (BGapi.isKnownResponse(data)) {
@@ -394,6 +424,16 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             }
             receiveText.append(TextUtil.toCaretString(msg, newline.length() != 0));
         }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void onSave(){
+//        FileWriter fw;
+//        try (FileWriter fw = new FileWriter(file)){
+//            fw.write(receiveText.getText().toString());
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
     }
 
     void status(String str) {
