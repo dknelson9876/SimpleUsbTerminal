@@ -24,4 +24,8 @@
         android:id="@+id/sendBreak"
         android:title="Send BREAK"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/manualUpload"
+        android:title="Force Upload Log"
+        />
 </menu>

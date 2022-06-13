@@ -2,6 +2,7 @@ package de.kai_morich.simple_usb_terminal;
 
 import android.annotation.SuppressLint;
 import android.hardware.SensorManager;
+import android.location.Location;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -16,6 +17,9 @@ import java.util.Date;
 
 public class BlePacket {
     private LocalDateTime time;
+    private double latt;
+    private double longg;
+    private double heading;
     private String addr;
     private byte rssi;
     private byte channel;
@@ -25,6 +29,16 @@ public class BlePacket {
     @SuppressLint("NewApi")
     public BlePacket(String addr, byte rssi, byte channel, byte packet_type, byte[] data){
         time = LocalDateTime.now();
+        heading = SensorHelper.getHeading();
+
+        Location location = MainActivity.getLocation();
+        if(location != null) {
+            latt = location.getLatitude();
+            longg = location.getLongitude();
+        } else {
+            latt = 0;
+            longg = 0;
+        }
 
         this.addr = addr;
         this.rssi = rssi;
@@ -63,17 +77,26 @@ public class BlePacket {
     @Override
     public String toString(){
         return time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+                +"\nLat: "+latt
+                +"\nLong: "+longg
+                +"\nHead: "+heading
                 +"\nAddr: "+addr
                 +"\nRSSI: "+rssi
                 +"\nChannel: "+(channel & 0xFF /*'cast' to unsigned*/)
                 +"\nPacket Type: 0x"+String.format("%02X", packet_type)
-                +"\nData: "+TextUtil.toHexString(data)+
-                "\n";
+                +"\nData: "+TextUtil.toHexString(data);
     }
 
     @SuppressLint("NewApi")
     public String toCSV(){
-        return time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) +","+addr+","+rssi+","+(channel & 0xFF)+","+TextUtil.toHexString(data)+"\n";
+        return time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+                +","+latt
+                +","+longg
+                +","+heading
+                +","+addr
+                +","+rssi
+                +","+(channel & 0xFF)
+                +","+TextUtil.toHexString(data)+"\n";
     }
 
 

@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="de.kai_morich.simple_usb_terminal">
 
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <!-- mipmap/ic_launcher created with Android Studio -> New -> Image Asset using @color/colorPrimaryDark as background color -->
@@ -32,6 +33,7 @@
                 android:resource="@xml/usb_device_filter" />
         </activity>
         <service android:name=".SerialService" />
+        <service android:name=".SensorHelper" />
     </application>
 
 </manifest>

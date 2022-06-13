@@ -13,6 +13,7 @@ import android.graphics.Color;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -39,6 +40,9 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
+import com.google.android.gms.auth.api.signin.internal.Storage;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
 import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
@@ -55,6 +59,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.EnumSet;
 
+@RequiresApi(api = Build.VERSION_CODES.O)
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
 
     private enum Connected {False, Pending, True}
@@ -70,12 +75,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private TextUtil.HexWatcher hexWatcher;
     private BlePacket pendingPacket;
     private FileWriter fw;
+    private File file;
+    private StorageReference storageRef;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
     private boolean hexEnabled = true;
     private boolean controlLinesEnabled = false;
     private boolean pendingNewline = false;
+    private boolean truncate = true;
     private String newline = TextUtil.newline_crlf;
 
     public TerminalFragment() {
@@ -182,7 +190,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     /*
      * UI
      */
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_terminal, container, false);
@@ -216,20 +223,25 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         stopBtn.setOnClickListener(v -> send(BGapi.STOP_CMD));
 
         View saveBtn = view.findViewById(R.id.save_btn);
-        saveBtn.setOnClickListener(v -> onSave());
+//        saveBtn.setOnClickListener(v -> onSave());
 
         File path = getContext().getExternalFilesDir(null);
-        File file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))+"_log.txt");
+        file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt");
         try {
             fw = new FileWriter(file);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        receiveText.append("Writing to "+file.getAbsolutePath()+"\n");
+        receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
+
+//        FirebaseStorage storage = FirebaseStorage.getInstance();
+//        storageRef = storage.getReference();
 
         controlLines = new ControlLines(view);
         return view;
     }
+
+
 
     @Override
     public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
@@ -281,6 +293,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             } catch (Exception e) {
                 status("send BREAK failed: " + e.getMessage());
             }
+            return true;
+        } else if(id == R.id.manualUpload){
+            uploadLog();
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -349,11 +364,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         connected = Connected.False;
         controlLines.stop();
         service.disconnect();
-        try {
-            fw.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
         usbSerialPort = null;
     }
 
@@ -391,7 +402,16 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             if (BGapi.isScanReportEvent(data)) {
                 //original script recorded time, addr, rssi, channel, and data
                 if (pendingPacket != null) {
-                    SpannableStringBuilder spn = new SpannableStringBuilder(pendingPacket.toString() + '\n');
+                    String msg = pendingPacket.toString();
+                    if (truncate) {
+                        int length = msg.length();
+//                        msg = length + "," + msg.lastIndexOf('\n') + "\n" + msg;
+                        if (length > msg.lastIndexOf('\n') + 40) {
+                            length = msg.lastIndexOf('\n') + 40;
+                        }
+                        msg = msg.substring(0, length) + "…";
+                    }
+                    SpannableStringBuilder spn = new SpannableStringBuilder(msg + "\n\n");
                     spn.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                     receiveText.append(spn);
                     try {
@@ -426,20 +446,39 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
-    private void onSave(){
-//        FileWriter fw;
-//        try (FileWriter fw = new FileWriter(file)){
-//            fw.write(receiveText.getText().toString());
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-    }
-
     void status(String str) {
         SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
         spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         receiveText.append(spn);
+    }
+
+    private void uploadLog(){
+        //clear the log
+        receiveText.setText("");
+
+        //close the filewriter
+        try{
+            fw.close();
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+
+        //upload the log
+        Activity act = getActivity();
+        if(act instanceof MainActivity){
+            ((MainActivity) act).uploadFile(file);
+        }
+
+        //create new file + filewriter
+        File path = getContext().getExternalFilesDir(null);
+        file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt");
+        try {
+            fw = new FileWriter(file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
     }
 
     /*
