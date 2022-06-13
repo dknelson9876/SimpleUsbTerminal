@@ -2,7 +2,6 @@ package de.kai_morich.simple_usb_terminal;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.net.Uri;
@@ -23,7 +22,6 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.tasks.CancellationToken;
 import com.google.android.gms.tasks.OnTokenCanceledListener;
-import com.google.android.gms.tasks.Task;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
@@ -39,7 +37,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     private static FusedLocationProviderClient fusedLocationClient;
     private static CurrentLocationRequest request = new CurrentLocationRequest.Builder().setPriority(Priority.PRIORITY_HIGH_ACCURACY).setMaxUpdateAgeMillis(10).build();
     private static Location location;
-    private Timer timer;
+    private Timer gpsTimer;
     private StorageReference storageRef;
 
     ActivityResultLauncher<String[]> locationPermissionRequest =
@@ -84,8 +82,8 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
         fusedLocationClient.getLastLocation().addOnSuccessListener(newLocation ->{
             location = newLocation;
         });
-        timer = new Timer();
-        timer.schedule(new TimerTask(){
+        gpsTimer = new Timer();
+        gpsTimer.schedule(new TimerTask(){
             @SuppressLint("MissingPermission")
             @Override
             public void run() {
@@ -107,24 +105,8 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
             }
         }, 0, 1000);
 
-
         FirebaseStorage storage = FirebaseStorage.getInstance();
         storageRef = storage.getReference();
-
-//        File path = getExternalFilesDir(null);
-//        File file = new File(path, "thing.txt");
-//        FileWriter fw;
-//        try {
-//            fw = new FileWriter(file);
-//            fw.write("This is some text\nwith some more text\nand more\nand more");
-//            fw.close();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//        Uri uri = Uri.fromFile(file);
-//        StorageReference fileRef = storageRef.child("log/thing.txt");
-//        fileRef.putFile(uri);
-
 
         if (savedInstanceState == null)
             getSupportFragmentManager().beginTransaction().add(R.id.fragment, new DevicesFragment(), "devices").commit();
@@ -154,7 +136,6 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     }
 
     public void testUpload(){
-
         FirebaseStorage storage = FirebaseStorage.getInstance();
         StorageReference storageRef = storage.getReference();
 

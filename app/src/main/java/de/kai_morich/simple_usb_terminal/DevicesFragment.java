@@ -123,21 +123,6 @@ public class DevicesFragment extends ListFragment {
             builder.create().show();
             return true;
         } else if (id == R.id.upload) {
-//            File path = getContext().getExternalFilesDir(null);
-//            File file = new File(path, "now.txt");
-//            try{
-//                FileWriter fw = new FileWriter(file);
-//                fw.write("some text");
-//                fw.close();
-//            } catch (Exception e){
-//                e.printStackTrace();
-//            }
-//
-//            FirebaseStorage storage = FirebaseStorage.getInstance();
-//            StorageReference storageRef = storage.getReference();
-//            Uri uri = Uri.fromFile(file);
-//            StorageReference fileRef = storageRef.child("/logs/now.txt");
-//            fileRef.putFile(uri);
             Activity act = getActivity();
             if(act instanceof MainActivity){
                 ((MainActivity) act).testUpload();

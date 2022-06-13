@@ -13,7 +13,6 @@ import android.graphics.Color;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -40,8 +39,6 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
-import com.google.android.gms.auth.api.signin.internal.Storage;
-import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -49,15 +46,13 @@ import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.Timer;
+import java.util.TimerTask;
 
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
@@ -77,6 +72,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private FileWriter fw;
     private File file;
     private StorageReference storageRef;
+    private Timer uploadTimer;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
@@ -115,6 +111,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onDestroy() {
         if (connected != Connected.False)
             disconnect();
+        uploadTimer.cancel();
         getActivity().stopService(new Intent(getActivity(), SerialService.class));
         super.onDestroy();
     }
@@ -237,6 +234,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //        FirebaseStorage storage = FirebaseStorage.getInstance();
 //        storageRef = storage.getReference();
 
+        uploadTimer = new Timer();
+        startTimer();
+
+
         controlLines = new ControlLines(view);
         return view;
     }
@@ -358,12 +359,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         } catch (Exception e) {
             onSerialConnectError(e);
         }
+        startTimer();
     }
 
     private void disconnect() {
         connected = Connected.False;
         controlLines.stop();
         service.disconnect();
+        stopTimer();
 
         usbSerialPort = null;
     }
@@ -479,6 +482,19 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
 
         receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
+    }
+
+    private void startTimer(){
+        uploadTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                uploadLog();
+            }
+        }, 0, 900000 /*15 minutes*/);
+    }
+
+    private void stopTimer(){
+        uploadTimer.cancel();
     }
 
     /*
