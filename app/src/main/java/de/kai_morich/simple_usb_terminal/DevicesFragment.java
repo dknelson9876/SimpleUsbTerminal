@@ -149,6 +149,11 @@ public class DevicesFragment extends ListFragment {
             } else {
                 listItems.add(new ListItem(device, 0, null));
             }
+            if(device.getVendorId() == 4966 && device.getProductId() == 261){
+                //this is a SiLabs Gecko
+                Toast.makeText(getActivity(), "Attempting to click Gecko", Toast.LENGTH_SHORT).show();
+                onListItemClick(null, null, listItems.size(), 0);
+            }
         }
         listAdapter.notifyDataSetChanged();
     }
