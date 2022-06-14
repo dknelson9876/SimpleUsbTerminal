@@ -54,6 +54,8 @@ public class DevicesFragment extends ListFragment {
 
     private final ArrayList<ListItem> listItems = new ArrayList<>();
     private ArrayAdapter<ListItem> listAdapter;
+    private boolean twoDeviceEnabled = false;
+    private Bundle args1 = null;
     private int baudRate = 19200;
 
     @Override
@@ -95,6 +97,7 @@ public class DevicesFragment extends ListFragment {
     @Override
     public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.menu_devices, menu);
+        menu.findItem(R.id.twoDeviceMode).setChecked(twoDeviceEnabled);
     }
 
     @Override
@@ -124,9 +127,13 @@ public class DevicesFragment extends ListFragment {
             return true;
         } else if (id == R.id.upload) {
             Activity act = getActivity();
-            if(act instanceof MainActivity){
+            if (act instanceof MainActivity) {
                 ((MainActivity) act).testUpload();
             }
+            return true;
+        } else if (id == R.id.twoDeviceMode) {
+            twoDeviceEnabled = !twoDeviceEnabled;
+            item.setChecked(twoDeviceEnabled);
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -149,9 +156,9 @@ public class DevicesFragment extends ListFragment {
             } else {
                 listItems.add(new ListItem(device, 0, null));
             }
-            if(device.getVendorId() == 4966 && device.getProductId() == 261){
+            if (device.getVendorId() == 4966 && device.getProductId() == 261) {
                 //this is a SiLabs Gecko
-                Toast.makeText(getActivity(), "Attempting to click Gecko", Toast.LENGTH_SHORT).show();
+//                Toast.makeText(getActivity(), "Attempting to click Gecko", Toast.LENGTH_SHORT).show();
                 onListItemClick(null, null, listItems.size(), 0);
             }
         }
@@ -168,9 +175,29 @@ public class DevicesFragment extends ListFragment {
             args.putInt("device", item.device.getDeviceId());
             args.putInt("port", item.port);
             args.putInt("baud", baudRate);
-            Fragment fragment = new TerminalFragment();
-            fragment.setArguments(args);
-            getFragmentManager().beginTransaction().replace(R.id.fragment, fragment, "terminal").addToBackStack(null).commit();
+            if (!twoDeviceEnabled) {
+                Fragment fragment = new TerminalFragment();
+                fragment.setArguments(args);
+                getFragmentManager().beginTransaction().replace(R.id.fragment, fragment, "terminal").addToBackStack(null).commit();
+            } else {
+                if (args1 == null) {
+                    Toast.makeText(getActivity(), "Set First Device", Toast.LENGTH_SHORT).show();
+                    args1 = args;
+                } else {
+                    Toast.makeText(getActivity(), "Setting Second Device", Toast.LENGTH_SHORT).show();
+                    Bundle fragmentArgs = new Bundle();
+                    fragmentArgs.putBundle("args1", args1);
+                    fragmentArgs.putBundle("args2", args);
+                    Fragment fragment = new TwoDeviceFragment();
+                    fragment.setArguments(fragmentArgs);
+//                    Toast.makeText(getActivity(), "Created TwoDeviceFragment ", Toast.LENGTH_SHORT).show();
+                    try {
+                        getParentFragmentManager().beginTransaction().replace(R.id.fragment, fragment).addToBackStack(null).commit();
+                    } catch (Exception e) {
+                        Toast.makeText(getActivity(), e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
         }
     }
 

@@ -79,7 +79,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private boolean hexEnabled = true;
     private boolean controlLinesEnabled = false;
     private boolean pendingNewline = false;
-    private boolean truncate = true;
+    private boolean truncate = false;
     private String newline = TextUtil.newline_crlf;
 
     public TerminalFragment() {
@@ -243,12 +243,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
 
-
     @Override
     public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.menu_terminal, menu);
         menu.findItem(R.id.hex).setChecked(hexEnabled);
         menu.findItem(R.id.controlLines).setChecked(controlLinesEnabled);
+        menu.findItem(R.id.truncate).setChecked(truncate);
     }
 
     @Override
@@ -295,8 +295,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 status("send BREAK failed: " + e.getMessage());
             }
             return true;
-        } else if(id == R.id.manualUpload){
+        } else if (id == R.id.manualUpload) {
             uploadLog();
+            return true;
+        } else if (id == R.id.truncate) {
+            truncate = !truncate;
+            item.setChecked(truncate);
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -311,6 +315,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void connect(Boolean permissionGranted) {
+        //get the manager
+        //from manager  get device
+        //from device   get driver
+        //from driver   get port
+        //from driver   get connection
+        //from port     open service
         UsbDevice device = null;
         UsbManager usbManager = (UsbManager) getActivity().getSystemService(Context.USB_SERVICE);
         for (UsbDevice v : usbManager.getDeviceList().values())
@@ -455,20 +465,20 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.append(spn);
     }
 
-    private void uploadLog(){
+    private void uploadLog() {
         //clear the log
         receiveText.setText("");
 
         //close the filewriter
-        try{
+        try {
             fw.close();
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
         //upload the log
         Activity act = getActivity();
-        if(act instanceof MainActivity){
+        if (act instanceof MainActivity) {
             ((MainActivity) act).uploadFile(file);
         }
 
@@ -484,7 +494,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
     }
 
-    private void startTimer(){
+    private void startTimer() {
         uploadTimer.schedule(new TimerTask() {
             @Override
             public void run() {
@@ -493,7 +503,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }, 0, 900000 /*15 minutes*/);
     }
 
-    private void stopTimer(){
+    private void stopTimer() {
         uploadTimer.cancel();
     }
 

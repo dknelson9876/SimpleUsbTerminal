@@ -16,6 +16,7 @@ class CustomProber {
         ProbeTable customTable = new ProbeTable();
         customTable.addProduct(0x16d0, 0x087e, CdcAcmSerialDriver.class); // e.g. Digispark CDC
         customTable.addProduct(0x1366, 0x0105, CdcAcmSerialDriver.class); // SiLabs BGM220x
+        customTable.addProduct(0x2A03, 0x0043, CdcAcmSerialDriver.class); // Arduino Uno
         return new UsbSerialProber(customTable);
     }
 
