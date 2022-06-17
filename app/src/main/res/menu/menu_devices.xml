@@ -10,9 +10,4 @@
     <item
         android:id="@+id/upload"
         android:title="Test Upload" />
-    <item
-        android:id="@+id/twoDeviceMode"
-        android:checkable="true"
-        android:title="Two Device Mode"
-        app:showAsAction="never" />
 </menu>

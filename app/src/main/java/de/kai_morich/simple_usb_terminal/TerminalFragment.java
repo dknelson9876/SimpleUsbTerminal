@@ -250,6 +250,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         inflater.inflate(R.menu.menu_terminal, menu);
         menu.findItem(R.id.hex).setChecked(hexEnabled);
         menu.findItem(R.id.controlLines).setChecked(controlLinesEnabled);
+        menu.findItem(R.id.truncate).setChecked(truncate);
     }
 
     @Override
@@ -298,6 +299,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //            return true;
         } else if(id == R.id.manualUpload){
             uploadLog();
+            return true;
+        } else if (id == R.id.truncate) {
+            truncate = !truncate;
+            item.setChecked(truncate);
             return true;
         } else if (id == R.id.manualCW) {
             send(BGapi.ROTATE_CW_CMD);
@@ -466,20 +471,20 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.append(spn);
     }
 
-    private void uploadLog(){
+    private void uploadLog() {
         //clear the log
         receiveText.setText("");
 
         //close the filewriter
-        try{
+        try {
             fw.close();
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
         //upload the log
         Activity act = getActivity();
-        if(act instanceof MainActivity){
+        if (act instanceof MainActivity) {
             ((MainActivity) act).uploadFile(file);
         }
 
@@ -495,7 +500,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
     }
 
-    private void startTimer(){
+    private void startTimer() {
         uploadTimer.schedule(new TimerTask() {
             @Override
             public void run() {
@@ -504,7 +509,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }, 0, 900000 /*15 minutes*/);
     }
 
-    private void stopTimer(){
+    private void stopTimer() {
         uploadTimer.cancel();
     }
 
