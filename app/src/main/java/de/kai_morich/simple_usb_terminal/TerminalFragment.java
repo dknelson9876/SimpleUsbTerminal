@@ -208,17 +208,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         setupBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                send("200205020401"); //set mode
-                send("200505010410001000"); //set timing
-                send("200c060050005000000064000000ffff"); //set parameters
+                send(BGapi.SCANNER_SET_MODE);
+                send(BGapi.SCANNER_SET_TIMING);
+                send(BGapi.CONNECTION_SET_PARAMETERS);
             }
         });
 
         View startBtn = view.findViewById(R.id.start_btn);
-        startBtn.setOnClickListener(v -> send(BGapi.START_CMD));
+        startBtn.setOnClickListener(v -> send(BGapi.SCANNER_START));
 
         View stopBtn = view.findViewById(R.id.stop_btn);
-        stopBtn.setOnClickListener(v -> send(BGapi.STOP_CMD));
+        stopBtn.setOnClickListener(v -> send(BGapi.SCANNER_STOP));
 
         View saveBtn = view.findViewById(R.id.save_btn);
 //        saveBtn.setOnClickListener(v -> onSave());
@@ -271,32 +271,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             });
             builder.create().show();
             return true;
-//        } else if (id == R.id.hex) {
-//            hexEnabled = !hexEnabled;
-//            sendText.setText("");
-//            hexWatcher.enable(hexEnabled);
-//            sendText.setHint(hexEnabled ? "HEX mode" : "");
-//            item.setChecked(hexEnabled);
-//            return true;
-//        } else if (id == R.id.controlLines) {
-//            controlLinesEnabled = !controlLinesEnabled;
-//            item.setChecked(controlLinesEnabled);
-//            if (controlLinesEnabled) {
-//                controlLines.start();
-//            } else {
-//                controlLines.stop();
-//            }
-//            return true;
-//        } else if (id == R.id.sendBreak) {
-//            try {
-//                usbSerialPort.setBreak(true);
-//                Thread.sleep(100);
-//                status("send BREAK");
-//                usbSerialPort.setBreak(false);
-//            } catch (Exception e) {
-//                status("send BREAK failed: " + e.getMessage());
-//            }
-//            return true;
         } else if(id == R.id.manualUpload){
             uploadLog();
             return true;
@@ -305,14 +279,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             item.setChecked(truncate);
             return true;
         } else if (id == R.id.manualCW) {
-            send(BGapi.ROTATE_CW_CMD);
+            send(BGapi.ROTATE_CW);
             SystemClock.sleep(500);
-            send(BGapi.ROTATE_STOP_CMD);
+            send(BGapi.ROTATE_STOP);
             return true;
         } else if (id == R.id.manualCCW) {
-            send(BGapi.ROTATE_CCW_CMD);
+            send(BGapi.ROTATE_CCW);
             SystemClock.sleep(500);
-            send(BGapi.ROTATE_STOP_CMD);
+            send(BGapi.ROTATE_STOP);
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -404,6 +378,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             } else {
                 msg = str;
                 data = (str + newline).getBytes();
+            }
+            if(BGapi.isCommand(str)){
+                msg = BGapi.getCommandName(str);
             }
             SpannableStringBuilder spn = new SpannableStringBuilder(msg + '\n');
             spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
