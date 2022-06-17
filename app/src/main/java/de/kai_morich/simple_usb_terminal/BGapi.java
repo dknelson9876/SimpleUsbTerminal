@@ -24,6 +24,9 @@ public class BGapi {
     public static final byte[] START_RESPONSE = {0x20, 0x02, 0x05, 0x03, 0x00, 0x00};
     public static final String STOP_CMD       = "20000505";
     public static final byte[] STOP_RESPONSE  = {0x20, 0x02, 0x05, 0x05, 0x00, 0x00};
+    public static final String ROTATE_CW_CMD = "2002FF000101";
+    public static final String ROTATE_CCW_CMD = "2002FF000102";
+    public static final String ROTATE_STOP_CMD = "2002FF000103";
 
     public static boolean isScanReportEvent(byte[] bytes){
         return bytes[0] == (byte)0xA1 && bytes[1] == 0x00

@@ -18,6 +18,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.text.Editable;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -269,34 +270,44 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             });
             builder.create().show();
             return true;
-        } else if (id == R.id.hex) {
-            hexEnabled = !hexEnabled;
-            sendText.setText("");
-            hexWatcher.enable(hexEnabled);
-            sendText.setHint(hexEnabled ? "HEX mode" : "");
-            item.setChecked(hexEnabled);
-            return true;
-        } else if (id == R.id.controlLines) {
-            controlLinesEnabled = !controlLinesEnabled;
-            item.setChecked(controlLinesEnabled);
-            if (controlLinesEnabled) {
-                controlLines.start();
-            } else {
-                controlLines.stop();
-            }
-            return true;
-        } else if (id == R.id.sendBreak) {
-            try {
-                usbSerialPort.setBreak(true);
-                Thread.sleep(100);
-                status("send BREAK");
-                usbSerialPort.setBreak(false);
-            } catch (Exception e) {
-                status("send BREAK failed: " + e.getMessage());
-            }
-            return true;
+//        } else if (id == R.id.hex) {
+//            hexEnabled = !hexEnabled;
+//            sendText.setText("");
+//            hexWatcher.enable(hexEnabled);
+//            sendText.setHint(hexEnabled ? "HEX mode" : "");
+//            item.setChecked(hexEnabled);
+//            return true;
+//        } else if (id == R.id.controlLines) {
+//            controlLinesEnabled = !controlLinesEnabled;
+//            item.setChecked(controlLinesEnabled);
+//            if (controlLinesEnabled) {
+//                controlLines.start();
+//            } else {
+//                controlLines.stop();
+//            }
+//            return true;
+//        } else if (id == R.id.sendBreak) {
+//            try {
+//                usbSerialPort.setBreak(true);
+//                Thread.sleep(100);
+//                status("send BREAK");
+//                usbSerialPort.setBreak(false);
+//            } catch (Exception e) {
+//                status("send BREAK failed: " + e.getMessage());
+//            }
+//            return true;
         } else if(id == R.id.manualUpload){
             uploadLog();
+            return true;
+        } else if (id == R.id.manualCW) {
+            send(BGapi.ROTATE_CW_CMD);
+            SystemClock.sleep(500);
+            send(BGapi.ROTATE_STOP_CMD);
+            return true;
+        } else if (id == R.id.manualCCW) {
+            send(BGapi.ROTATE_CCW_CMD);
+            SystemClock.sleep(500);
+            send(BGapi.ROTATE_STOP_CMD);
             return true;
         } else {
             return super.onOptionsItemSelected(item);

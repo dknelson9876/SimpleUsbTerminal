@@ -28,4 +28,12 @@
         android:id="@+id/manualUpload"
         android:title="Force Upload Log"
         />
+    <item
+        android:id="@+id/manualCW"
+        android:title="Rotate CW"
+        />
+    <item
+        android:id="@+id/manualCCW"
+        android:title="Rotate CCW"
+        />
 </menu>
