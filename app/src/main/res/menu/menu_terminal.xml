@@ -1,44 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:android="http://schemas.android.com/apk/res/android">
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
         android:id="@+id/clear"
         android:icon="@drawable/ic_delete_white_24dp"
         android:title="Clear"
         app:showAsAction="always" />
-    <item
-        android:id="@+id/newline"
-        android:title="Newline"
-        app:showAsAction="never" />
-    <item
-        android:id="@+id/hex"
-        android:title="HEX Mode"
-        android:checkable="true"
-        app:showAsAction="never" />
+    <!--    <item-->
+    <!--        android:id="@+id/newline"-->
+    <!--        android:title="Newline"-->
+    <!--        app:showAsAction="never" />-->
+    <!--    <item-->
+    <!--        android:id="@+id/hex"-->
+    <!--        android:checkable="true"-->
+    <!--        android:title="HEX Mode"-->
+    <!--        app:showAsAction="never" />-->
     <item
         android:id="@+id/controlLines"
-        android:title="Control Lines"
         android:checkable="true"
+        android:title="Control Lines"
         app:showAsAction="never" />
     <item
         android:id="@+id/truncate"
-        android:title="Truncate Data"
         android:checkable="true"
+        android:title="Truncate Data"
         app:showAsAction="never" />
-    <item
-        android:id="@+id/sendBreak"
-        android:title="Send BREAK"
-        app:showAsAction="never" />
+    <!--    <item-->
+    <!--        android:id="@+id/sendBreak"-->
+    <!--        android:title="Send BREAK"-->
+    <!--        app:showAsAction="never" />-->
     <item
         android:id="@+id/manualUpload"
-        android:title="Force Upload Log"
-        />
+        android:title="Force Upload Log" />
     <item
         android:id="@+id/manualCW"
-        android:title="Rotate CW"
-        />
+        android:title="Rotate CW" />
     <item
         android:id="@+id/manualCCW"
-        android:title="Rotate CCW"
-        />
+        android:title="Rotate CCW" />
+
+    <item
+        android:id="@+id/autoRotate"
+        android:title="Auto Rotate" />
+    <item
+        android:id="@+id/stopAutoRotate"
+        android:title="Stop Auto Rotate" />
+    <item
+        android:id="@+id/editRotate"
+        android:title="Edit Rotation Period" />
 </menu>

@@ -6,6 +6,7 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -20,6 +21,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.method.ScrollingMovementMethod;
@@ -30,6 +32,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -73,7 +76,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private FileWriter fw;
     private File file;
     private StorageReference storageRef;
-    private Timer uploadTimer;
+    private Timer uploadTimer, motorTimer;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
@@ -82,6 +85,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private boolean pendingNewline = false;
     private boolean truncate = true;
     private String newline = TextUtil.newline_crlf;
+    private int rotatePeriod = 500;
 
     public TerminalFragment() {
         broadcastReceiver = new BroadcastReceiver() {
@@ -238,6 +242,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         uploadTimer = new Timer();
         startTimer();
 
+        motorTimer = new Timer();
+
+
 
         controlLines = new ControlLines(view);
         return view;
@@ -248,8 +255,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.menu_terminal, menu);
-        menu.findItem(R.id.hex).setChecked(hexEnabled);
-        menu.findItem(R.id.controlLines).setChecked(controlLinesEnabled);
+//        menu.findItem(R.id.hex).setChecked(hexEnabled);
+//        menu.findItem(R.id.controlLines).setChecked(controlLinesEnabled);
         menu.findItem(R.id.truncate).setChecked(truncate);
     }
 
@@ -259,18 +266,18 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         if (id == R.id.clear) {
             receiveText.setText("");
             return true;
-        } else if (id == R.id.newline) {
-            String[] newlineNames = getResources().getStringArray(R.array.newline_names);
-            String[] newlineValues = getResources().getStringArray(R.array.newline_values);
-            int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-            builder.setTitle("Newline");
-            builder.setSingleChoiceItems(newlineNames, pos, (dialog, item1) -> {
-                newline = newlineValues[item1];
-                dialog.dismiss();
-            });
-            builder.create().show();
-            return true;
+//        } else if (id == R.id.newline) {
+//            String[] newlineNames = getResources().getStringArray(R.array.newline_names);
+//            String[] newlineValues = getResources().getStringArray(R.array.newline_values);
+//            int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
+//            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+//            builder.setTitle("Newline");
+//            builder.setSingleChoiceItems(newlineNames, pos, (dialog, item1) -> {
+//                newline = newlineValues[item1];
+//                dialog.dismiss();
+//            });
+//            builder.create().show();
+//            return true;
         } else if(id == R.id.manualUpload){
             uploadLog();
             return true;
@@ -287,6 +294,42 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             send(BGapi.ROTATE_CCW);
             SystemClock.sleep(500);
             send(BGapi.ROTATE_STOP);
+            return true;
+        } else if (id == R.id.autoRotate) {
+            motorTimer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    send(BGapi.ROTATE_CW);
+                    SystemClock.sleep(rotatePeriod);
+                    send(BGapi.ROTATE_STOP);
+                }
+            }, 0, 1000);
+            return true;
+        } else if (id == R.id.stopAutoRotate){
+            motorTimer.cancel();
+            return true;
+        } else if(id == R.id.editRotate){
+            AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+            builder.setTitle("Title");
+
+            final EditText input = new EditText(getContext());
+            input.setInputType(InputType.TYPE_CLASS_TEXT);
+            builder.setView(input);
+
+            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    rotatePeriod = Integer.parseInt(input.getText().toString());
+                }
+            });
+            builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.cancel();
+                }
+            });
+            builder.show();
+
             return true;
         } else {
             return super.onOptionsItemSelected(item);
