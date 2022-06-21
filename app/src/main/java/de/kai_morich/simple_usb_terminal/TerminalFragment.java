@@ -245,11 +245,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         motorTimer = new Timer();
 
 
-
         controlLines = new ControlLines(view);
         return view;
     }
-
 
 
     @Override
@@ -278,7 +276,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //            });
 //            builder.create().show();
 //            return true;
-        } else if(id == R.id.manualUpload){
+        } else if (id == R.id.manualUpload) {
             uploadLog();
             return true;
         } else if (id == R.id.truncate) {
@@ -296,6 +294,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             send(BGapi.ROTATE_STOP);
             return true;
         } else if (id == R.id.autoRotate) {
+            motorTimer = new Timer();
             motorTimer.schedule(new TimerTask() {
                 @Override
                 public void run() {
@@ -303,14 +302,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     SystemClock.sleep(rotatePeriod);
                     send(BGapi.ROTATE_STOP);
                 }
-            }, 0, 1000);
+            }, 0, rotatePeriod * 2);
             return true;
-        } else if (id == R.id.stopAutoRotate){
+        } else if (id == R.id.stopAutoRotate) {
             motorTimer.cancel();
             return true;
-        } else if(id == R.id.editRotate){
+        } else if (id == R.id.editRotate) {
             AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-            builder.setTitle("Title");
+            builder.setTitle("New Rotation Period");
 
             final EditText input = new EditText(getContext());
             input.setInputType(InputType.TYPE_CLASS_TEXT);
@@ -320,6 +319,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     rotatePeriod = Integer.parseInt(input.getText().toString());
+                    Toast.makeText(getContext(), "Set rotation period to " + rotatePeriod, Toast.LENGTH_SHORT).show();
                 }
             });
             builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
@@ -422,7 +422,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 msg = str;
                 data = (str + newline).getBytes();
             }
-            if(BGapi.isCommand(str)){
+            if (BGapi.isCommand(str)) {
                 msg = BGapi.getCommandName(str);
             }
             SpannableStringBuilder spn = new SpannableStringBuilder(msg + '\n');

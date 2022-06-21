@@ -2,11 +2,19 @@ package de.kai_morich.simple_usb_terminal;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.InputType;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.widget.EditText;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -35,24 +43,27 @@ import java.util.TimerTask;
 public class MainActivity extends AppCompatActivity implements FragmentManager.OnBackStackChangedListener {
 
     private static FusedLocationProviderClient fusedLocationClient;
-    private static CurrentLocationRequest request = new CurrentLocationRequest.Builder().setPriority(Priority.PRIORITY_HIGH_ACCURACY).setMaxUpdateAgeMillis(10).build();
+    private static CurrentLocationRequest locationRequest = new CurrentLocationRequest.Builder().setPriority(Priority.PRIORITY_HIGH_ACCURACY).setMaxUpdateAgeMillis(60000).build();
     private static Location location;
     private Timer gpsTimer;
     private StorageReference storageRef;
+    private int gpsPeriod;
 
     ActivityResultLauncher<String[]> locationPermissionRequest =
-            registerForActivityResult(new ActivityResultContracts
-                            .RequestMultiplePermissions(), result -> {
-                        Boolean fineLocationGranted = result.getOrDefault(
-                                Manifest.permission.ACCESS_FINE_LOCATION, false);
-                        Boolean coarseLocationGranted = result.getOrDefault(
-                                Manifest.permission.ACCESS_COARSE_LOCATION, false);
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+                        Boolean fineLocationGranted = result.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false);
+                        Boolean coarseLocationGranted = result.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false);
                         if (fineLocationGranted != null && fineLocationGranted) {
                             // Precise location access granted.
+                            Toast.makeText(this, "Correct Location Permissions", Toast.LENGTH_SHORT).show();
                         } else if (coarseLocationGranted != null && coarseLocationGranted) {
                             // Only approximate location access granted.
+                            Toast.makeText(this, "Bad Location Permissions", Toast.LENGTH_SHORT).show();
+//                            rerequestLocation();
                         } else {
                             // No location access granted.
+                            Toast.makeText(this, "No Location Permissions", Toast.LENGTH_SHORT).show();
+//                            rerequestLocation();
                         }
                     }
             );
@@ -87,7 +98,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
             @SuppressLint("MissingPermission")
             @Override
             public void run() {
-                fusedLocationClient.getCurrentLocation(request, new CancellationToken() {
+                fusedLocationClient.getCurrentLocation(locationRequest, new CancellationToken() {
                     @SuppressLint("MissingPermission")
                     @NonNull
                     @Override
@@ -115,6 +126,78 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     }
 
     @Override
+    public boolean onCreateOptionsMenu(@NonNull Menu menu){
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu_main_activity, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item){
+        int id = item.getItemId();
+        if(id == R.id.gps_period){
+            Toast.makeText(getApplicationContext(), "Clicked GPS Period option", Toast.LENGTH_SHORT).show();
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("New GPS Period");
+
+            final EditText input = new EditText(getApplicationContext());
+            input.setInputType(InputType.TYPE_CLASS_TEXT);
+            builder.setView(input);
+
+            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    gpsTimer.cancel();
+                    gpsPeriod = Integer.parseInt(input.getText().toString());
+                    Toast.makeText(getApplicationContext(), "Set GPS period to "+gpsPeriod, Toast.LENGTH_SHORT).show();
+
+                    locationRequest = new CurrentLocationRequest.Builder().setPriority(Priority.PRIORITY_HIGH_ACCURACY).setMaxUpdateAgeMillis(gpsPeriod-10).build();
+
+                    gpsTimer = new Timer();
+                    gpsTimer.schedule(new TimerTask(){
+                        @SuppressLint("MissingPermission")
+                        @Override
+                        public void run() {
+                            fusedLocationClient.getCurrentLocation(locationRequest, new CancellationToken() {
+                                @SuppressLint("MissingPermission")
+                                @NonNull
+                                @Override
+                                public CancellationToken onCanceledRequested(@NonNull OnTokenCanceledListener onTokenCanceledListener) {
+                                    return null;
+                                }
+
+                                @Override
+                                public boolean isCancellationRequested() {
+                                    return false;
+                                }
+                            }).addOnSuccessListener( newLocation ->{
+                                location = newLocation;
+                            });
+                        }
+                    }, 0, gpsPeriod);
+                }
+            });
+            builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.cancel();
+                }
+            });
+            Toast.makeText(getApplicationContext(), "built popup", Toast.LENGTH_SHORT).show();
+            try {
+                builder.show();
+            } catch (Exception e) {
+                Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+                e.printStackTrace();
+            }
+            Toast.makeText(getApplicationContext(), "showed popup", Toast.LENGTH_SHORT).show();
+            return true;
+        } else {
+            return super.onOptionsItemSelected(item);
+        }
+    }
+
+    @Override
     public void onBackStackChanged() {
         getSupportActionBar().setDisplayHomeAsUpEnabled(getSupportFragmentManager().getBackStackEntryCount()>0);
     }
@@ -133,6 +216,12 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
                 terminal.status("USB device detected");
         }
         super.onNewIntent(intent);
+    }
+
+    @Override
+    public void onStop(){
+        gpsTimer.cancel();
+        super.onStop();
     }
 
     public void testUpload(){
