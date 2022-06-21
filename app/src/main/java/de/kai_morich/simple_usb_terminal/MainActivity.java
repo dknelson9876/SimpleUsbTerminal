@@ -43,11 +43,11 @@ import java.util.TimerTask;
 public class MainActivity extends AppCompatActivity implements FragmentManager.OnBackStackChangedListener {
 
     private static FusedLocationProviderClient fusedLocationClient;
-    private static CurrentLocationRequest locationRequest = new CurrentLocationRequest.Builder().setPriority(Priority.PRIORITY_HIGH_ACCURACY).setMaxUpdateAgeMillis(60000).build();
+    private static CurrentLocationRequest locationRequest = new CurrentLocationRequest.Builder().setPriority(Priority.PRIORITY_HIGH_ACCURACY).setMaxUpdateAgeMillis(300000).build();
     private static Location location;
     private Timer gpsTimer;
     private StorageReference storageRef;
-    private int gpsPeriod;
+    private int gpsPeriod = 300000;
 
     ActivityResultLauncher<String[]> locationPermissionRequest =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
