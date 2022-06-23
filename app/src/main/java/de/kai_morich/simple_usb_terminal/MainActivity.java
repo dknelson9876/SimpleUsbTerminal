@@ -39,7 +39,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -63,11 +62,9 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
                         } else if (coarseLocationGranted != null && coarseLocationGranted) {
                             // Only approximate location access granted.
                             Toast.makeText(this, "Bad Location Permissions", Toast.LENGTH_SHORT).show();
-//                            rerequestLocation();
                         } else {
                             // No location access granted.
                             Toast.makeText(this, "No Location Permissions", Toast.LENGTH_SHORT).show();
-//                            rerequestLocation();
                         }
                     }
             );
@@ -236,7 +233,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
         super.onDestroy();
     }
 
-    public void testUpload(String origin){
+    public void testUpload(String origin) {
         FirebaseStorage storage = FirebaseStorage.getInstance();
         StorageReference storageRef = storage.getReference();
 
@@ -264,7 +261,8 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     public void uploadFile(File file){
         Uri uri = Uri.fromFile(file);
         StorageReference fileRef = storageRef.child("log/"
-                +Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)+"/"+uri.getLastPathSegment());
+                +Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)
+                +"/"+uri.getLastPathSegment());
         fileRef.putFile(uri);
     }
 
