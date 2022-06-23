@@ -43,7 +43,6 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
-import com.google.firebase.storage.StorageReference;
 import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
@@ -235,13 +234,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
 
         View setupBtn = view.findViewById(R.id.setup_btn);
-        setupBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                send(BGapi.SCANNER_SET_MODE);
-                send(BGapi.SCANNER_SET_TIMING);
-                send(BGapi.CONNECTION_SET_PARAMETERS);
-            }
+        setupBtn.setOnClickListener(view1 -> {
+            send(BGapi.SCANNER_SET_MODE);
+            send(BGapi.SCANNER_SET_TIMING);
+            send(BGapi.CONNECTION_SET_PARAMETERS);
         });
 
         View startBtn = view.findViewById(R.id.start_btn);
@@ -261,9 +257,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             e.printStackTrace();
         }
         receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
-
-//        FirebaseStorage storage = FirebaseStorage.getInstance();
-//        storageRef = storage.getReference();
 
         uploadTimer = new Timer();
         startTimer();
@@ -290,8 +283,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.menu_terminal, menu);
-//        menu.findItem(R.id.hex).setChecked(hexEnabled);
-//        menu.findItem(R.id.controlLines).setChecked(controlLinesEnabled);
         menu.findItem(R.id.truncate).setChecked(truncate);
     }
 
@@ -301,18 +292,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         if (id == R.id.clear) {
             receiveText.setText("");
             return true;
-//        } else if (id == R.id.newline) {
-//            String[] newlineNames = getResources().getStringArray(R.array.newline_names);
-//            String[] newlineValues = getResources().getStringArray(R.array.newline_values);
-//            int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
-//            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-//            builder.setTitle("Newline");
-//            builder.setSingleChoiceItems(newlineNames, pos, (dialog, item1) -> {
-//                newline = newlineValues[item1];
-//                dialog.dismiss();
-//            });
-//            builder.create().show();
-//            return true;
         } else if (id == R.id.manualUpload) {
             uploadLog();
             return true;
@@ -339,7 +318,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     SystemClock.sleep(rotatePeriod);
                     send(BGapi.ROTATE_STOP);
                 }
-            }, 0, rotatePeriod * 2);
+            }, 0, rotatePeriod * 2L);
             return true;
         } else if (id == R.id.stopAutoRotate) {
             motorTimer.cancel();
@@ -352,19 +331,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             input.setInputType(InputType.TYPE_CLASS_TEXT);
             builder.setView(input);
 
-            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    rotatePeriod = Integer.parseInt(input.getText().toString());
-                    Toast.makeText(getContext(), "Set rotation period to " + rotatePeriod, Toast.LENGTH_SHORT).show();
-                }
+            builder.setPositiveButton("OK", (dialog, which) -> {
+                rotatePeriod = Integer.parseInt(input.getText().toString());
+                Toast.makeText(getContext(), "Set rotation period to " + rotatePeriod, Toast.LENGTH_SHORT).show();
             });
-            builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    dialog.cancel();
-                }
-            });
+            builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
             builder.show();
 
             return true;
@@ -481,7 +452,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                     String msg = pendingPacket.toString();
                     if (truncate) {
                         int length = msg.length();
-//                        msg = length + "," + msg.lastIndexOf('\n') + "\n" + msg;
                         if (length > msg.lastIndexOf('\n') + 40) {
                             length = msg.lastIndexOf('\n') + 40;
                         }
@@ -532,7 +502,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         //clear the log
         receiveText.setText("");
 
-        //close the filewriter
+        //close the fileWriter
         try {
             fw.close();
         } catch (Exception e) {
@@ -545,7 +515,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             ((MainActivity) act).uploadFile(file);
         }
 
-        //create new file + filewriter
+        //create new file + fileWriter
         File path = getContext().getExternalFilesDir(null);
         file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt");
         try {
@@ -602,7 +572,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     class ControlLines {
-        private static final int refreshInterval = 200; // msec
+        private static final int refreshInterval = 200; // ms
 
         private final Handler mainLooper;
         private final Runnable runnable;
