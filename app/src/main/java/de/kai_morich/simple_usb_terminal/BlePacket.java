@@ -66,13 +66,21 @@ public class BlePacket {
         float temperature = 0.0f;
         byte[] meas = new byte[4];
         if (data.length > 42) {
-            meas = Arrays.copyOfRange(data, 38, 42);
+            meas = Arrays.copyOfRange(data, 39, 43);
+            meas = reverseArray(meas);
             temperature = ByteBuffer.wrap(meas).getFloat();
         }
 
         return new BlePacket(addr, rssi, channel, packet_type, data, temperature, meas);
     }
 
+    public static byte[] reverseArray(byte[] bytes){
+        byte[] toreturn = new byte[bytes.length];
+        for(int i = 0; i < bytes.length; i++){
+            toreturn[i] = bytes[bytes.length-1-i];
+        }
+        return toreturn;
+    }
 
 
     public void appendData(byte[] bytes){

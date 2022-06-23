@@ -125,7 +125,7 @@ public class DevicesFragment extends ListFragment {
         } else if (id == R.id.upload) {
             Activity act = getActivity();
             if (act instanceof MainActivity) {
-                ((MainActivity) act).testUpload();
+                ((MainActivity) act).testUpload("ManualOption");
             }
             return true;
         } else {
