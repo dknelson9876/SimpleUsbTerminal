@@ -125,7 +125,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         if (service != null)
             service.attach(this);
         else
-            getActivity().startService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
+            getActivity().startForegroundService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
     }
 
     @Override
@@ -151,6 +151,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         super.onAttach(activity);
         //TODO: broke
 //        status("onAttach");
+//        getActivity().startForegroundService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
         getActivity().bindService(new Intent(getActivity(), SerialService.class), this, Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT);
     }
 
@@ -264,16 +265,16 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         motorTimer = new Timer();
 
         testTimer = new Timer();
-        testTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                status("testUpload");
-                Activity act = getActivity();
-                if (act instanceof MainActivity) {
-                    ((MainActivity) act).testUpload("FragmentTimer");
-                }
-            }
-        }, 0, 60000 /*1 minute*/);
+//        testTimer.schedule(new TimerTask() {
+//            @Override
+//            public void run() {
+//                status("testUpload");
+//                Activity act = getActivity();
+//                if (act instanceof MainActivity) {
+//                    ((MainActivity) act).testUpload("FragmentTimer");
+//                }
+//            }
+//        }, 0, 60000 /*1 minute*/);
 
         controlLines = new ControlLines(view);
         return view;

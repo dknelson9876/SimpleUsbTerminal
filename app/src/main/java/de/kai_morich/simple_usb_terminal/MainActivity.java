@@ -9,6 +9,7 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.text.InputType;
 import android.view.Menu;
@@ -50,7 +51,11 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     private static Location location;
     private Timer gpsTimer;
     private StorageReference storageRef;
+    private PowerManager.WakeLock wakeLock;
     private int gpsPeriod = 300000;
+
+
+    private final String TAG = SerialService.class.getSimpleName();
 
     ActivityResultLauncher<String[]> locationPermissionRequest =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
@@ -128,10 +133,22 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
             }
         }, 0, 60000 /*1 minute*/);
 
+        //start wakelock
+        startWakeLock();
+
+
+
         if (savedInstanceState == null)
             getSupportFragmentManager().beginTransaction().add(R.id.fragment, new DevicesFragment(), "devices").commit();
         else
             onBackStackChanged();
+    }
+
+    private void startWakeLock() {
+
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
+        wakeLock.acquire();
     }
 
     @Override

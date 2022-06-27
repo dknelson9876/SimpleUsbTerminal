@@ -12,6 +12,9 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
+import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
@@ -28,6 +31,7 @@ public class SerialService extends Service implements SerialListener {
 
     class SerialBinder extends Binder {
         SerialService getService() {
+            instance = SerialService.this;
             return SerialService.this;
         }
     }
@@ -49,10 +53,18 @@ public class SerialService extends Service implements SerialListener {
     private final Handler mainLooper;
     private final IBinder binder;
     private final Queue<QueueItem> queue1, queue2;
+    private ServiceNotification notification;
+    private static SerialService instance = null;
+    public static SerialService getInstance(){
+        return instance;
+    }
 
     private SerialSocket socket;
     private SerialListener listener;
     private boolean connected;
+    private final String TAG = SerialService.class.getSimpleName();
+
+    private static final int NOTIFICATION_ID = 2406;
 
     /**
      * Lifecylce
@@ -62,6 +74,19 @@ public class SerialService extends Service implements SerialListener {
         binder = new SerialBinder();
         queue1 = new LinkedList<>();
         queue2 = new LinkedList<>();
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        super.onStartCommand(intent, flags, startId);
+        try{
+            notification = new ServiceNotification(this, NOTIFICATION_ID, true);
+            startForeground(NOTIFICATION_ID, notification.getNotification());
+        } catch (Exception e){
+            Log.e(TAG, e.getMessage());
+        }
+
+        return START_REDELIVER_INTENT;
     }
 
     @Override
@@ -142,7 +167,7 @@ public class SerialService extends Service implements SerialListener {
     private void createNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel nc = new NotificationChannel(Constants.NOTIFICATION_CHANNEL, "Background service", NotificationManager.IMPORTANCE_LOW);
-            nc.setShowBadge(false);
+            nc.setShowBadge(true);
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             nm.createNotificationChannel(nc);
         }
