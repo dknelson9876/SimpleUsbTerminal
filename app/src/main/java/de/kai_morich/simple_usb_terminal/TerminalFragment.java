@@ -269,7 +269,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             public void run() {
                 status("testUpload");
                 Activity act = getActivity();
-                if(act instanceof MainActivity){
+                if (act instanceof MainActivity) {
                     ((MainActivity) act).testUpload("FragmentTimer");
                 }
             }
@@ -529,11 +529,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     private void startTimer() {
         uploadTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                uploadLog();
-            }
-        }, 0,
+                                 @Override
+                                 public void run() {
+                                     uploadLog();
+                                 }
+                             }, 0,
                 120000 /*2 minutes*/
 //                900000 /*15 minutes*/
         );

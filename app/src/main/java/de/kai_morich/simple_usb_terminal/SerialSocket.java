@@ -27,7 +27,7 @@ public class SerialSocket implements SerialInputOutputManager.Listener {
     private SerialInputOutputManager ioManager;
 
     SerialSocket(Context context, UsbDeviceConnection connection, UsbSerialPort serialPort) {
-        if(context instanceof Activity)
+        if (context instanceof Activity)
             throw new InvalidParameterException("expected non UI context");
         this.context = context;
         this.connection = connection;
@@ -42,7 +42,9 @@ public class SerialSocket implements SerialInputOutputManager.Listener {
         };
     }
 
-    String getName() { return serialPort.getDriver().getClass().getSimpleName().replace("SerialDriver",""); }
+    String getName() {
+        return serialPort.getDriver().getClass().getSimpleName().replace("SerialDriver", "");
+    }
 
     void connect(SerialListener listener) throws IOException {
         this.listener = listener;
@@ -72,7 +74,7 @@ public class SerialSocket implements SerialInputOutputManager.Listener {
             }
             serialPort = null;
         }
-        if(connection != null) {
+        if (connection != null) {
             connection.close();
             connection = null;
         }
@@ -83,14 +85,14 @@ public class SerialSocket implements SerialInputOutputManager.Listener {
     }
 
     void write(byte[] data) throws IOException {
-        if(serialPort == null)
+        if (serialPort == null)
             throw new IOException("not connected");
         serialPort.write(data, WRITE_WAIT_MILLIS);
     }
 
     @Override
     public void onNewData(byte[] data) {
-        if(listener != null)
+        if (listener != null)
             listener.onSerialRead(data);
     }
 

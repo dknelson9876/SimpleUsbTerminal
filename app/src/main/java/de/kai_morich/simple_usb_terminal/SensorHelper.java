@@ -26,7 +26,7 @@ public class SensorHelper extends Service implements SensorEventListener {
     float[] accelerometerReading = new float[3], magnetometerReading = new float[3];
     private static double heading = 0.0;
 
-//    public SensorHelper(){
+    //    public SensorHelper(){
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     public void onCreate() {
         super.onCreate();
@@ -41,7 +41,7 @@ public class SensorHelper extends Service implements SensorEventListener {
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId){
+    public int onStartCommand(Intent intent, int flags, int startId) {
         onCreate();
         return START_STICKY;
     }
@@ -52,17 +52,17 @@ public class SensorHelper extends Service implements SensorEventListener {
         return null;
     }
 
-    public static double getHeading(){
+    public static double getHeading() {
         return heading;
     }
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        if(event == null)
+        if (event == null)
             return;
-        if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER){
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             accelerometerReading = event.values;
-        } else if(event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD){
+        } else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
             magnetometerReading = event.values;
         }
 

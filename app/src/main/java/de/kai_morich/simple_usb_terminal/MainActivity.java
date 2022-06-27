@@ -70,7 +70,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
             );
 
     @SuppressLint("MissingPermission")
-    public static Location getLocation(){
+    public static Location getLocation() {
         return location;
     }
 
@@ -91,11 +91,11 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
         });
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        fusedLocationClient.getLastLocation().addOnSuccessListener(newLocation ->{
+        fusedLocationClient.getLastLocation().addOnSuccessListener(newLocation -> {
             location = newLocation;
         });
         gpsTimer = new Timer();
-        gpsTimer.schedule(new TimerTask(){
+        gpsTimer.schedule(new TimerTask() {
             @SuppressLint("MissingPermission")
             @Override
             public void run() {
@@ -111,7 +111,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
                     public boolean isCancellationRequested() {
                         return false;
                     }
-                }).addOnSuccessListener( newLocation ->{
+                }).addOnSuccessListener(newLocation -> {
                     location = newLocation;
                 });
             }
@@ -135,16 +135,16 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     }
 
     @Override
-    public boolean onCreateOptionsMenu(@NonNull Menu menu){
+    public boolean onCreateOptionsMenu(@NonNull Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_main_activity, menu);
         return true;
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item){
+    public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-        if(id == R.id.gps_period){
+        if (id == R.id.gps_period) {
             Toast.makeText(getApplicationContext(), "Clicked GPS Period option", Toast.LENGTH_SHORT).show();
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
             builder.setTitle("New GPS Period");
@@ -158,12 +158,12 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
                 public void onClick(DialogInterface dialog, int which) {
                     gpsTimer.cancel();
                     gpsPeriod = Integer.parseInt(input.getText().toString());
-                    Toast.makeText(getApplicationContext(), "Set GPS period to "+gpsPeriod, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getApplicationContext(), "Set GPS period to " + gpsPeriod, Toast.LENGTH_SHORT).show();
 
-                    locationRequest = new CurrentLocationRequest.Builder().setPriority(Priority.PRIORITY_HIGH_ACCURACY).setMaxUpdateAgeMillis(gpsPeriod-10).build();
+                    locationRequest = new CurrentLocationRequest.Builder().setPriority(Priority.PRIORITY_HIGH_ACCURACY).setMaxUpdateAgeMillis(gpsPeriod - 10).build();
 
                     gpsTimer = new Timer();
-                    gpsTimer.schedule(new TimerTask(){
+                    gpsTimer.schedule(new TimerTask() {
                         @SuppressLint("MissingPermission")
                         @Override
                         public void run() {
@@ -179,7 +179,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
                                 public boolean isCancellationRequested() {
                                     return false;
                                 }
-                            }).addOnSuccessListener( newLocation ->{
+                            }).addOnSuccessListener(newLocation -> {
                                 location = newLocation;
                             });
                         }
@@ -208,7 +208,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
 
     @Override
     public void onBackStackChanged() {
-        getSupportActionBar().setDisplayHomeAsUpEnabled(getSupportFragmentManager().getBackStackEntryCount()>0);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(getSupportFragmentManager().getBackStackEntryCount() > 0);
     }
 
     @Override
@@ -220,7 +220,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     @Override
     protected void onNewIntent(Intent intent) {
         if ("android.hardware.usb.action.USB_DEVICE_ATTACHED".equals(intent.getAction())) {
-            TerminalFragment terminal = (TerminalFragment)getSupportFragmentManager().findFragmentByTag("terminal");
+            TerminalFragment terminal = (TerminalFragment) getSupportFragmentManager().findFragmentByTag("terminal");
             if (terminal != null)
                 terminal.status("USB device detected");
         }
@@ -228,7 +228,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     }
 
     @Override
-    public void onDestroy(){
+    public void onDestroy() {
         gpsTimer.cancel();
         super.onDestroy();
     }
@@ -258,11 +258,11 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
         fileRef.putFile(uri);
     }
 
-    public void uploadFile(File file){
+    public void uploadFile(File file) {
         Uri uri = Uri.fromFile(file);
         StorageReference fileRef = storageRef.child("log/"
-                +Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)
-                +"/"+uri.getLastPathSegment());
+                + Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)
+                + "/" + uri.getLastPathSegment());
         fileRef.putFile(uri);
     }
 
