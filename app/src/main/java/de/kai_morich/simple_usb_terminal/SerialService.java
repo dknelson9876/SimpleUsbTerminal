@@ -79,12 +79,8 @@ public class SerialService extends Service implements SerialListener {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
-        try{
-            notification = new ServiceNotification(this, NOTIFICATION_ID, true);
-            startForeground(NOTIFICATION_ID, notification.getNotification());
-        } catch (Exception e){
-            Log.e(TAG, e.getMessage());
-        }
+        notification = new ServiceNotification(this, NOTIFICATION_ID, false);
+        startForeground(NOTIFICATION_ID, notification.getNotification());
 
         return START_REDELIVER_INTENT;
     }

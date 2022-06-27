@@ -136,7 +136,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
         //start wakelock
         startWakeLock();
 
-
+        WorkerWrapper.startWorker(getApplicationContext());
 
         if (savedInstanceState == null)
             getSupportFragmentManager().beginTransaction().add(R.id.fragment, new DevicesFragment(), "devices").commit();
