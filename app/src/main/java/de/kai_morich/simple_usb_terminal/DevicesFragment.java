@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 
@@ -25,14 +24,9 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Locale;
 
@@ -114,11 +108,9 @@ public class DevicesFragment extends ListFragment {
             int pos = java.util.Arrays.asList(baudRates).indexOf(String.valueOf(baudRate));
             AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
             builder.setTitle("Baud rate");
-            builder.setSingleChoiceItems(baudRates, pos, new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int item) {
-                    baudRate = Integer.parseInt(baudRates[item]);
-                    dialog.dismiss();
-                }
+            builder.setSingleChoiceItems(baudRates, pos, (dialog, item1) -> {
+                baudRate = Integer.parseInt(baudRates[item1]);
+                dialog.dismiss();
             });
             builder.create().show();
             return true;
