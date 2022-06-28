@@ -115,9 +115,14 @@ public class DevicesFragment extends ListFragment {
             builder.create().show();
             return true;
         } else if (id == R.id.upload) {
-            Activity act = getActivity();
-            if (act instanceof MainActivity) {
-                ((MainActivity) act).testUpload("ManualOption");
+//            Activity act = getActivity();
+//            if (act instanceof MainActivity) {
+//                ((MainActivity) act).testUpload("ManualOption");
+//            }
+            try {
+                FirebaseService.Companion.getInstance().testUpload("ManualOption");
+            } catch (Exception e) {
+                Toast.makeText(getContext(), "Problem uploading: "+e.getMessage(), Toast.LENGTH_SHORT).show();
             }
             return true;
         } else {

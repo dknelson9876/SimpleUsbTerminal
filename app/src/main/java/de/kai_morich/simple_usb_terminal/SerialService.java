@@ -25,7 +25,7 @@ import java.util.Queue;
  * create notification and queue serial data while activity is not in the foreground
  * use listener chain: SerialSocket -> SerialService -> UI fragment
  */
-@RequiresApi(api = Build.VERSION_CODES.M)
+@RequiresApi(api = Build.VERSION_CODES.O)
 public class SerialService extends Service implements SerialListener {
 
     class SerialBinder extends Binder {
@@ -224,6 +224,7 @@ public class SerialService extends Service implements SerialListener {
                     });
                 } else {
                     queue2.add(new QueueItem(QueueType.Read, data, null));
+                    FirebaseService.Companion.getInstance().testUpload("SerialService");
                 }
             }
         }

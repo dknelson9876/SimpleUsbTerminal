@@ -84,6 +84,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
         getSupportFragmentManager().addOnBackStackChangedListener(this);
 
         startService(new Intent(this, SensorHelper.class));
+        startForegroundService(new Intent(this, FirebaseService.class));
 
         locationPermissionRequest.launch(new String[]{
                 Manifest.permission.ACCESS_FINE_LOCATION,
@@ -225,30 +226,30 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
         super.onDestroy();
     }
 
-    public void testUpload(String origin) {
-        FirebaseStorage storage = FirebaseStorage.getInstance();
-        StorageReference storageRef = storage.getReference();
-
-        File path = getExternalFilesDir(null);
-        File file = new File(path, "MainActivity#testUpload.txt");
-        FileWriter fw;
-        try {
-            fw = new FileWriter(file);
-            fw.write("This is some text");
-            fw.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        Uri uri = Uri.fromFile(file);
-        StorageReference fileRef = storageRef.child("test/"
-                + Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)
-                + "/"
-                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
-                + "_"
-                + origin
-                + ".txt");
-        fileRef.putFile(uri);
-    }
+//    public void testUpload(String origin) {
+//        FirebaseStorage storage = FirebaseStorage.getInstance();
+//        StorageReference storageRef = storage.getReference();
+//
+//        File path = getExternalFilesDir(null);
+//        File file = new File(path, "MainActivity#testUpload.txt");
+//        FileWriter fw;
+//        try {
+//            fw = new FileWriter(file);
+//            fw.write("This is some text");
+//            fw.close();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        Uri uri = Uri.fromFile(file);
+//        StorageReference fileRef = storageRef.child("test/"
+//                + Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)
+//                + "/"
+//                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+//                + "_"
+//                + origin
+//                + ".txt");
+//        fileRef.putFile(uri);
+//    }
 
     public void uploadFile(File file){
         Uri uri = Uri.fromFile(file);
