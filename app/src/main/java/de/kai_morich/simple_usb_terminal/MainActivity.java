@@ -47,7 +47,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     private static Location location;
     private Timer gpsTimer;
     private StorageReference storageRef;
-    private int gpsPeriod = 300000;
+    private int gpsPeriod = 300000 /*5 min*/;
 
     ActivityResultLauncher<String[]> locationPermissionRequest =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
@@ -114,7 +114,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
                     location = newLocation;
                 });
             }
-        }, 0, 1000);
+        }, 0, gpsPeriod);
 
         FirebaseStorage storage = FirebaseStorage.getInstance();
         storageRef = storage.getReference();
