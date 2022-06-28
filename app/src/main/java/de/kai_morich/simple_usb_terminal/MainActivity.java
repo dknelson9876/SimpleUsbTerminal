@@ -9,6 +9,7 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.text.InputType;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -36,6 +37,9 @@ import com.google.firebase.storage.StorageReference;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -219,12 +223,12 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     }
 
     @Override
-    public void onStop(){
+    public void onDestroy(){
         gpsTimer.cancel();
-        super.onStop();
+        super.onDestroy();
     }
 
-    public void testUpload(){
+    public void testUpload(String origin){
         FirebaseStorage storage = FirebaseStorage.getInstance();
         StorageReference storageRef = storage.getReference();
 
@@ -239,13 +243,20 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
             e.printStackTrace();
         }
         Uri uri = Uri.fromFile(file);
-        StorageReference fileRef = storageRef.child("log/MainActivity#testUpload.txt");
+        StorageReference fileRef = storageRef.child("test/"
+                + Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)
+                + "/"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+                + "_"
+                + origin
+                + ".txt");
         fileRef.putFile(uri);
     }
 
     public void uploadFile(File file){
         Uri uri = Uri.fromFile(file);
-        StorageReference fileRef = storageRef.child("log/"+uri.getLastPathSegment());
+        StorageReference fileRef = storageRef.child("log/"
+                +Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)+"/"+uri.getLastPathSegment());
         fileRef.putFile(uri);
     }
 

@@ -526,7 +526,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             public void run() {
                 uploadLog();
             }
-        }, 0, 900000 /*15 minutes*/);
+        }, 0,
+                120000 /*2 minutes*/
+//                900000 /*15 minutes*/
+        );
     }
 
     private void stopTimer() {
