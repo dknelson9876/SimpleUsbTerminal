@@ -74,7 +74,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private BlePacket pendingPacket;
     private FileWriter fw;
     private File file;
-    private Timer uploadTimer, motorTimer, testTimer;
+    private Timer uploadTimer, motorTimer;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
@@ -130,16 +130,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onStop() {
-//        if (service != null && !getActivity().isChangingConfigurations())
-//            service.detach();
-
-        status("onStop");
-
-        try {
-            fw.write("onStop\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        if (service != null && !getActivity().isChangingConfigurations())
+            service.detach();
 
         super.onStop();
     }
@@ -149,10 +141,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onAttach(@NonNull Activity activity) {
         super.onAttach(activity);
-        //TODO: broke
-//        status("onAttach");
 //        getActivity().startForegroundService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
-        getActivity().bindService(new Intent(getActivity(), SerialService.class), this, Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT);
+        getActivity().bindService(new Intent(getActivity(), SerialService.class), this, Context.BIND_AUTO_CREATE);
     }
 
     @Override
@@ -161,14 +151,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             getActivity().unbindService(this);
         } catch (Exception ignored) {
         }
-
-        status("onDetach");
-        try {
-            fw.write("onDetach\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         super.onDetach();
     }
 
@@ -189,14 +171,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         getActivity().unregisterReceiver(broadcastReceiver);
         if (controlLines != null)
             controlLines.stop();
-
-        status("onPause");
-        try {
-            fw.write("onPause\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         super.onPause();
     }
 
@@ -263,18 +237,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         startTimer();
 
         motorTimer = new Timer();
-
-        testTimer = new Timer();
-//        testTimer.schedule(new TimerTask() {
-//            @Override
-//            public void run() {
-//                status("testUpload");
-//                Activity act = getActivity();
-//                if (act instanceof MainActivity) {
-//                    ((MainActivity) act).testUpload("FragmentTimer");
-//                }
-//            }
-//        }, 0, 60000 /*1 minute*/);
 
         controlLines = new ControlLines(view);
         return view;
@@ -496,7 +458,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     void status(String str) {
         SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
         spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        receiveText.append(spn);
+        if (receiveText != null)
+            receiveText.append(spn);
     }
 
     private void uploadLog() {
