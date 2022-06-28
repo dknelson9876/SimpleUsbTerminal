@@ -14,6 +14,7 @@ import android.os.IBinder;
 import android.os.Looper;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
 import java.io.IOException;
@@ -24,6 +25,7 @@ import java.util.Queue;
  * create notification and queue serial data while activity is not in the foreground
  * use listener chain: SerialSocket -> SerialService -> UI fragment
  */
+@RequiresApi(api = Build.VERSION_CODES.M)
 public class SerialService extends Service implements SerialListener {
 
     class SerialBinder extends Binder {
@@ -146,8 +148,8 @@ public class SerialService extends Service implements SerialListener {
                 .setClassName(this, Constants.INTENT_CLASS_MAIN_ACTIVITY)
                 .setAction(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LAUNCHER);
-        PendingIntent disconnectPendingIntent = PendingIntent.getBroadcast(this, 1, disconnectIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-        PendingIntent restartPendingIntent = PendingIntent.getActivity(this, 1, restartIntent,  PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent disconnectPendingIntent = PendingIntent.getBroadcast(this, 1, disconnectIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent restartPendingIntent = PendingIntent.getActivity(this, 1, restartIntent,  PendingIntent.FLAG_UPDATE_CURRENT| PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, Constants.NOTIFICATION_CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setColor(getResources().getColor(R.color.colorPrimary))
