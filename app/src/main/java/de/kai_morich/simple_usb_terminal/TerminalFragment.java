@@ -73,7 +73,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private ControlLines controlLines;
     private TextUtil.HexWatcher hexWatcher;
     private BlePacket pendingPacket;
-    private FileWriter fw;
+//    private FileWriter fw;
     private File file;
     private Timer uploadTimer, motorTimer;
 
@@ -225,11 +225,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
         File path = getContext().getExternalFilesDir(null);
         file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt");
-        try {
-            fw = new FileWriter(file);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            fw = new FileWriter(file);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
         receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
 
         uploadTimer = new Timer();
@@ -408,50 +408,34 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void receive(byte[] data) {
-        if (hexEnabled) {
-            if (BGapi.isScanReportEvent(data)) {
-                //original script recorded time, addr, rssi, channel, and data
-                if (pendingPacket != null) {
-                    String msg = pendingPacket.toString();
-                    if (truncate) {
-                        int length = msg.length();
-                        if (length > msg.lastIndexOf('\n') + 40) {
-                            length = msg.lastIndexOf('\n') + 40;
-                        }
-                        msg = msg.substring(0, length) + "…";
+        if (BGapi.isScanReportEvent(data)) {
+            //original script recorded time, addr, rssi, channel, and data
+            if (pendingPacket != null) {
+                String msg = pendingPacket.toString();
+                if (truncate) {
+                    int length = msg.length();
+                    if (length > msg.lastIndexOf('\n') + 40) {
+                        length = msg.lastIndexOf('\n') + 40;
                     }
-                    SpannableStringBuilder spn = new SpannableStringBuilder(msg + "\n\n");
-                    spn.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    receiveText.append(spn);
-                    try {
-                        fw.write(pendingPacket.toCSV());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    msg = msg.substring(0, length) + "…";
                 }
-                pendingPacket = BlePacket.parsePacket(data);
-            } else if (BGapi.isKnownResponse(data)) {
-                receiveText.append(BGapi.getResponseName(data) + '\n');
-            } else {
-                //until the data has a terminator, assume packets that aren't a known header are data that was truncated
-                if (pendingPacket != null)
-                    pendingPacket.appendData(data);
-//                receiveText.append(TextUtil.toHexString(data) + '\n');
+                SpannableStringBuilder spn = new SpannableStringBuilder(msg + "\n\n");
+                spn.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                receiveText.append(spn);
+//                try {
+//                    fw.write(pendingPacket.toCSV());
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
             }
+            pendingPacket = BlePacket.parsePacket(data);
+        } else if (BGapi.isKnownResponse(data)) {
+            receiveText.append(BGapi.getResponseName(data) + '\n');
         } else {
-            String msg = new String(data);
-            if (newline.equals(TextUtil.newline_crlf) && msg.length() > 0) {
-                // don't show CR as ^M if directly before LF
-                msg = msg.replace(TextUtil.newline_crlf, TextUtil.newline_lf);
-                // special handling if CR and LF come in separate fragments
-                if (pendingNewline && msg.charAt(0) == '\n') {
-                    Editable edt = receiveText.getEditableText();
-                    if (edt != null && edt.length() > 1)
-                        edt.replace(edt.length() - 2, edt.length(), "");
-                }
-                pendingNewline = msg.charAt(msg.length() - 1) == '\r';
-            }
-            receiveText.append(TextUtil.toCaretString(msg, newline.length() != 0));
+            //until the data has a terminator, assume packets that aren't a known header are data that was truncated
+            if (pendingPacket != null)
+                pendingPacket.appendData(data);
+//                receiveText.append(TextUtil.toHexString(data) + '\n');
         }
     }
 
@@ -466,11 +450,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.setText("");
 
         //close the fileWriter
-        try {
-            fw.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+//        try {
+//            fw.close();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
 
         //upload the log
         Activity act = getActivity();
@@ -481,29 +465,29 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         //create new file + fileWriter
         File path = getContext().getExternalFilesDir(null);
         file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt");
-        try {
-            fw = new FileWriter(file);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            fw = new FileWriter(file);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
         receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
     }
 
     private void startTimer() {
-        uploadTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                uploadLog();
-            }
-        }, 0,
-                120000 /*2 minutes*/
-//                900000 /*15 minutes*/
-        );
+//        uploadTimer.schedule(new TimerTask() {
+//                                 @Override
+//                                 public void run() {
+//                                     uploadLog();
+//                                 }
+//                             }, 0,
+//                120000 /*2 minutes*/
+////                900000 /*15 minutes*/
+//        );
     }
 
     private void stopTimer() {
-        uploadTimer.cancel();
+//        uploadTimer.cancel();
     }
 
     /*

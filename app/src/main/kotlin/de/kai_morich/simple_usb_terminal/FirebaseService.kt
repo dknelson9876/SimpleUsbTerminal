@@ -22,6 +22,8 @@ class FirebaseService : Service() {
     private var currentNotification: ServiceNotification? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var handler: Handler? = null
+    private var fw: FileWriter? = null
+    private var file: File? = null
     private lateinit var timeoutRunnable: Runnable
 
     companion object {
@@ -33,6 +35,15 @@ class FirebaseService : Service() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+
+        var path = applicationContext.getExternalFilesDir(null)
+        file = File(
+            path,
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+                    + "+log.txt"
+        )
+        fw = FileWriter(file)
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
@@ -50,7 +61,7 @@ class FirebaseService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error starting foreground process " + e.message)
         }
-//        startHandler()
+        startHandler()
         return START_REDELIVER_INTENT
     }
 
@@ -70,11 +81,14 @@ class FirebaseService : Service() {
         looper.let {
             handler = Handler(looper!!)
             timeoutRunnable = Runnable {
-
-                uploadFile()
-                handler?.postDelayed(timeoutRunnable, 120000)
+                uploadLog()
+//                uploadFile()
+                handler?.postDelayed(timeoutRunnable,
+//                    120000 /*2 minutes*/
+                    60000 /*1 minute*/
+                )
             }
-            handler?.post(timeoutRunnable)
+            handler?.postDelayed(timeoutRunnable, 60000)
         }
 //        handler = Handler(looper!!)
 //        timeoutRunnable = Runnable { uploadFile() }
@@ -102,27 +116,21 @@ class FirebaseService : Service() {
         return null
     }
 
-    fun uploadFile() {
+    fun uploadFile(file: File) {
         Log.i(TAG, "FirebaseService#uploadFile()")
         val storageRef = FirebaseStorage.getInstance().reference
-        val path = getExternalFilesDir(null)
-        val file = File(path, "file.txt")
-        try {
-            val fw = FileWriter(file)
-            fw.write("some text")
-            fw.close()
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
+        val uri = Uri.fromFile(file)
         val fileRef = storageRef.child(
-            LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_ServiceUpload.txt"
+            "log/"
+                    + Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)
+                    + "/" + uri.lastPathSegment
         )
-        fileRef.putFile(Uri.fromFile(file))
-            .addOnSuccessListener { taskSnapshot: UploadTask.TaskSnapshot? ->
-                Toast.makeText(
-                    applicationContext, "Upload Success", Toast.LENGTH_SHORT
-                ).show()
+        fileRef.putFile(uri)
+            .addOnSuccessListener {
+                Toast.makeText(applicationContext, "Upload Success", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener {
+                Toast.makeText(applicationContext, it.message, Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -141,18 +149,41 @@ class FirebaseService : Service() {
         val fileRef = storageRef.child(
             "test/"
                     + Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)
-                    +"/"
+                    + "/"
                     + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
-                    +"_"
-                    +origin
+                    + "_"
+                    + origin
                     + ".txt"
         )
         fileRef.putFile(Uri.fromFile(file))
-            .addOnSuccessListener { taskSnapshot: UploadTask.TaskSnapshot? ->
+            .addOnSuccessListener {
                 Toast.makeText(
                     applicationContext, "Upload Success", Toast.LENGTH_SHORT
                 ).show()
             }
+    }
+
+    fun appendFile(csv: String) {
+        fw?.write(csv);
+    }
+
+    fun uploadLog() {
+        //close the FileWriter
+        fw?.close()
+
+        //upload the log
+        Toast.makeText(applicationContext, "File status: " + (file != null), Toast.LENGTH_SHORT)
+            .show();
+        file?.let { uploadFile(it) }
+
+        //create new File + FileWriter
+        var path = applicationContext.getExternalFilesDir(null)
+        file = File(
+            path,
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+                    + "_log.txt"
+        )
+        fw = FileWriter(file)
     }
 
 

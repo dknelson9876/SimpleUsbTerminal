@@ -50,6 +50,8 @@ public class SerialService extends Service implements SerialListener {
     private SerialListener listener;
     private boolean connected;
 
+    private BlePacket pendingPacket;
+
     /**
      * Lifecylce
      */
@@ -213,6 +215,18 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialRead(byte[] data) {
         if(connected) {
+            // parse here to determine if it should be sent to FirebaseService too
+            if (BGapi.isScanReportEvent(data)) {
+                if (pendingPacket != null) {
+                    FirebaseService.Companion.getInstance().appendFile(pendingPacket.toCSV());
+                }
+                pendingPacket = BlePacket.parsePacket(data);
+            } else if (!BGapi.isKnownResponse(data)) {
+                //until the data has a terminator, assume packets that aren't a known header are data that was truncated
+                if (pendingPacket != null)
+                    pendingPacket.appendData(data);
+            }
+
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {
@@ -224,7 +238,7 @@ public class SerialService extends Service implements SerialListener {
                     });
                 } else {
                     queue2.add(new QueueItem(QueueType.Read, data, null));
-                    FirebaseService.Companion.getInstance().testUpload("SerialService");
+//                    FirebaseService.Companion.getInstance().testUpload("SerialService");
                 }
             }
         }
