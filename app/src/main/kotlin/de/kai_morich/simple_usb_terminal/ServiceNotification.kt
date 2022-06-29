@@ -34,7 +34,7 @@ class ServiceNotification @JvmOverloads constructor (
     }
 
     //the method that can be called to update the notification
-    private fun setNotification(context: Context, title: String?, text: String?, icon: Int): Notification {
+    fun setNotification(context: Context, title: String?, text: String?, icon: Int): Notification {
         val notification: Notification
         notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -53,8 +53,8 @@ class ServiceNotification @JvmOverloads constructor (
             }
             notification = notificationBuilder!!
                 .setSmallIcon(icon)
-                .setContentTitle("Notification Title")
-                .setContentText("Notification Text")
+                .setContentTitle(title)
+                .setContentText(text)
                 .setContentIntent(notificationPendingIntent)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .build()

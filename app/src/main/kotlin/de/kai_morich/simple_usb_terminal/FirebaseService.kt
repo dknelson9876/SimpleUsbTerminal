@@ -53,6 +53,7 @@ class FirebaseService : Service() {
         try {
             Log.i(TAG, "starting foreground process")
             currentNotification = ServiceNotification(this, NOTIFICATION_ID, false)
+            currentNotification!!.setNotification(this, "Terminal Upload Service", "Currently Running", R.mipmap.ic_launcher)
 //            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 //                startForeground(NOTIFICATION_ID, currentNotification!!.notification!!, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
 //            } else {
