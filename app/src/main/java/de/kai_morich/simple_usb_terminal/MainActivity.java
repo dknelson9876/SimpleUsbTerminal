@@ -84,7 +84,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
         getSupportFragmentManager().addOnBackStackChangedListener(this);
 
         startService(new Intent(this, SensorHelper.class));
-        startForegroundService(new Intent(this, FirebaseService.class));
+        WorkerWrapper.startWorker(getApplicationContext());
 
         locationPermissionRequest.launch(new String[]{
                 Manifest.permission.ACCESS_FINE_LOCATION,

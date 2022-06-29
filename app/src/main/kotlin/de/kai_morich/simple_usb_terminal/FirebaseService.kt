@@ -41,7 +41,7 @@ class FirebaseService : Service() {
         file = File(
             path,
             LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
-                    + "+log.txt"
+                    + "_log.txt"
         )
         fw = FileWriter(file)
     }
@@ -77,13 +77,14 @@ class FirebaseService : Service() {
     }
 
     private fun startHandler() {
-        Log.i(TAG, "Starting handler")
+//        Log.i(TAG, "Starting handler")
+        Toast.makeText(applicationContext, "Starting handler", Toast.LENGTH_SHORT).show();
         val looper = Looper.myLooper()
         looper.let {
             handler = Handler(looper!!)
             timeoutRunnable = Runnable {
                 uploadLog()
-//                uploadFile()
+//                testUpload("FirebaseService")
                 handler?.postDelayed(timeoutRunnable,
 //                    120000 /*2 minutes*/
                     60000 /*1 minute*/
@@ -97,7 +98,8 @@ class FirebaseService : Service() {
     }
 
     private fun stopHandler() {
-        Log.i(TAG, "stopping handler")
+//        Log.i(TAG, "stopping handler")
+        Toast.makeText(applicationContext, "Stopping handler", Toast.LENGTH_SHORT).show();
         try {
             handler!!.looper.quitSafely()
         } catch (e: Exception) {
@@ -110,6 +112,7 @@ class FirebaseService : Service() {
         Log.i(TAG, "FirebaseService#onDestroy")
         stopHandler()
         if (wakeLock != null) wakeLock!!.release()
+        stopService(Intent(applicationContext, FirebaseService::class.java))
     }
 
     override fun onBind(intent: Intent): IBinder? {
@@ -128,7 +131,7 @@ class FirebaseService : Service() {
         )
         fileRef.putFile(uri)
             .addOnSuccessListener {
-                Toast.makeText(applicationContext, "Upload Success", Toast.LENGTH_SHORT).show()
+                Toast.makeText(applicationContext, "Scheduled Upload Success", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener {
                 Toast.makeText(applicationContext, it.message, Toast.LENGTH_SHORT).show()
@@ -159,7 +162,7 @@ class FirebaseService : Service() {
         fileRef.putFile(Uri.fromFile(file))
             .addOnSuccessListener {
                 Toast.makeText(
-                    applicationContext, "Upload Success", Toast.LENGTH_SHORT
+                    applicationContext, "Test Upload Success", Toast.LENGTH_SHORT
                 ).show()
             }
     }
@@ -173,8 +176,8 @@ class FirebaseService : Service() {
         fw?.close()
 
         //upload the log
-        Toast.makeText(applicationContext, "File status: " + (file != null), Toast.LENGTH_SHORT)
-            .show();
+//        Toast.makeText(applicationContext, "File status: " + (file != null), Toast.LENGTH_SHORT)
+//            .show();
         file?.let { uploadFile(it) }
 
         //create new File + FileWriter

@@ -37,6 +37,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-storage:20.0.1'
     implementation "androidx.core:core-ktx:+"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation "androidx.work:work-runtime-ktx:2.7.1"
 }
 repositories {
     mavenCentral()
