@@ -220,6 +220,8 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     @Override
     public void onDestroy(){
         gpsTimer.cancel();
+//        stopService(new Intent(this, FirebaseService.class));
+//        stopService(new Intent(this, SerialService.class));
         super.onDestroy();
     }
 

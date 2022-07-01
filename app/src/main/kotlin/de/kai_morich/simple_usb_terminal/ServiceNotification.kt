@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 
@@ -17,6 +18,8 @@ class ServiceNotification @JvmOverloads constructor (
     var notification: Notification? = null
     private var notificationPendingIntent: PendingIntent? = null
     private var notificationManager: NotificationManager? = null
+    private val notificationStopRequestCode = 23
+    private val notificationId = 74
 
     companion object {
         private val TAG : String = Notification::class.java.simpleName
@@ -51,12 +54,25 @@ class ServiceNotification @JvmOverloads constructor (
             if(notificationManager != null){
                 notificationManager!!.createNotificationChannel(channel)
             }
+
+            val stopNotificationIntent = Intent(context, FirebaseService.ActionListener::class.java)
+            stopNotificationIntent.action = FirebaseService.KEY_NOTIFICATION_STOP_ACTION
+            stopNotificationIntent.putExtra(FirebaseService.KEY_NOTIFICATION_ID, notificationId)
+            val pendingStopNotificationIntent = PendingIntent.getBroadcast(
+                context,
+                notificationStopRequestCode,
+                stopNotificationIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+
             notification = notificationBuilder!!
                 .setSmallIcon(icon)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setContentIntent(notificationPendingIntent)
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .addAction(R.mipmap.ic_launcher, "Stop Uploading", pendingStopNotificationIntent)
                 .build()
         } else {
             notification = NotificationCompat.Builder(context, "channelID")

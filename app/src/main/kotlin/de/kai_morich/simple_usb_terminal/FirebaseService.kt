@@ -1,7 +1,10 @@
 package de.kai_morich.simple_usb_terminal
 
 import android.annotation.SuppressLint
+import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.*
@@ -25,11 +28,15 @@ class FirebaseService : Service() {
     private var fw: FileWriter? = null
     private var file: File? = null
     private lateinit var timeoutRunnable: Runnable
+    private val uploadDelay = 900000L /*15 minutes*/
 
     companion object {
         private val TAG = FirebaseService::class.java.simpleName
         var instance: FirebaseService? = null
         private const val NOTIFICATION_ID = 3956
+
+        const val KEY_NOTIFICATION_ID = "notificationID"
+        const val KEY_NOTIFICATION_STOP_ACTION = "de.kai_morich.simple_usb_terminal.NOTIFICATION_STOP"
     }
 
     override fun onCreate() {
@@ -86,11 +93,10 @@ class FirebaseService : Service() {
                 uploadLog()
 //                testUpload("FirebaseService")
                 handler?.postDelayed(timeoutRunnable,
-//                    120000 /*2 minutes*/
-                    60000 /*1 minute*/
+                    uploadDelay
                 )
             }
-            handler?.postDelayed(timeoutRunnable, 60000)
+            handler?.postDelayed(timeoutRunnable, uploadDelay)
         }
 //        handler = Handler(looper!!)
 //        timeoutRunnable = Runnable { uploadFile() }
@@ -192,6 +198,25 @@ class FirebaseService : Service() {
             )
             fw = FileWriter(file)
         }
+    }
+
+    class ActionListener : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if(intent != null && intent.action != null){
+                if(intent.action.equals(KEY_NOTIFICATION_STOP_ACTION)){
+                    context?.let{
+                        context.stopService(Intent(context, FirebaseService::class.java))
+                        Log.i(TAG,"Stopped FirebaseService")
+                        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        val notificationId = intent.getIntExtra(KEY_NOTIFICATION_ID, -1)
+                        if(notificationId != -1){
+                            notificationManager.cancel(notificationId)
+                        }
+                    }
+                }
+            }
+        }
+
     }
 
 
