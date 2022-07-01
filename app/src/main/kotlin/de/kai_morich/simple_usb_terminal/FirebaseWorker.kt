@@ -12,7 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @RequiresApi(Build.VERSION_CODES.O)
-class MainCoroutineWorker(private val context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
+class FirebaseWorker(private val context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
 
     companion object {
         private var TAG = this::class.simpleName

@@ -8,13 +8,22 @@ import androidx.work.WorkManager
 
 class WorkerWrapper {
     companion object {
-        @JvmStatic fun startWorker(context: Context){
+        @JvmStatic fun startFirebaseWorker(context: Context){
             val constraints = Constraints.Builder().build()
-            val request = OneTimeWorkRequestBuilder<MainCoroutineWorker>()
+            val request = OneTimeWorkRequestBuilder<FirebaseWorker>()
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .setConstraints(constraints)
                 .build()
             WorkManager.getInstance(context).enqueue(request)
         }
+        @JvmStatic fun startSerialWorker(context: Context){
+            val constraints = Constraints.Builder().build()
+            val request = OneTimeWorkRequestBuilder<SerialWorker>()
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setConstraints(constraints)
+                .build()
+            WorkManager.getInstance(context).enqueue(request)
+        }
+
     }
 }

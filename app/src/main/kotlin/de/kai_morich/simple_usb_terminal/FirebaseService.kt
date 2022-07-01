@@ -168,26 +168,30 @@ class FirebaseService : Service() {
     }
 
     fun appendFile(csv: String) {
-        fw?.write(csv);
+        synchronized(this) {
+            fw?.write(csv);
+        }
     }
 
     fun uploadLog() {
         //close the FileWriter
-        fw?.close()
+        synchronized(this) {
+            fw?.close()
 
-        //upload the log
+            //upload the log
 //        Toast.makeText(applicationContext, "File status: " + (file != null), Toast.LENGTH_SHORT)
 //            .show();
-        file?.let { uploadFile(it) }
+            file?.let { uploadFile(it) }
 
-        //create new File + FileWriter
-        var path = applicationContext.getExternalFilesDir(null)
-        file = File(
-            path,
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
-                    + "_log.txt"
-        )
-        fw = FileWriter(file)
+            //create new File + FileWriter
+            var path = applicationContext.getExternalFilesDir(null)
+            file = File(
+                path,
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+                        + "_log.txt"
+            )
+            fw = FileWriter(file)
+        }
     }
 
 

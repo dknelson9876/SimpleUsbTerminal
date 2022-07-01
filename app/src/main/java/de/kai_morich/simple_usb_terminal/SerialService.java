@@ -12,6 +12,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -20,6 +21,7 @@ import androidx.core.app.NotificationCompat;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.SplittableRandom;
 
 /**
  * create notification and queue serial data while activity is not in the foreground
@@ -51,6 +53,11 @@ public class SerialService extends Service implements SerialListener {
     private boolean connected;
 
     private BlePacket pendingPacket;
+    private static SerialService instance;
+
+    public static SerialService getInstance(){
+        return instance;
+    }
 
     /**
      * Lifecylce
@@ -60,6 +67,17 @@ public class SerialService extends Service implements SerialListener {
         binder = new SerialBinder();
         queue1 = new LinkedList<>();
         queue2 = new LinkedList<>();
+
+        instance = this;
+
+
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        super.onStartCommand(intent, flags, startId);
+        createNotification();
+        return START_STICKY;
     }
 
     @Override
@@ -193,6 +211,8 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialConnectError(Exception e) {
         if(connected) {
+            FirebaseService.Companion.getInstance().appendFile(e.getMessage() + "\n");
+            FirebaseService.Companion.getInstance().appendFile(Log.getStackTraceString(e)+"\n");
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {
@@ -246,6 +266,8 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialIoError(Exception e) {
         if(connected) {
+            FirebaseService.Companion.getInstance().appendFile(e.getMessage() + "\n");
+            FirebaseService.Companion.getInstance().appendFile(Log.getStackTraceString(e)+"\n");
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {

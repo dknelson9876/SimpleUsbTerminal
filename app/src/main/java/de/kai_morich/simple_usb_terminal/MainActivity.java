@@ -35,10 +35,6 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -84,7 +80,8 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
         getSupportFragmentManager().addOnBackStackChangedListener(this);
 
         startService(new Intent(this, SensorHelper.class));
-        WorkerWrapper.startWorker(getApplicationContext());
+        WorkerWrapper.startFirebaseWorker(getApplicationContext());
+        WorkerWrapper.startSerialWorker(getApplicationContext());
 
         locationPermissionRequest.launch(new String[]{
                 Manifest.permission.ACCESS_FINE_LOCATION,
