@@ -12,7 +12,9 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -21,7 +23,6 @@ import androidx.core.app.NotificationCompat;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.SplittableRandom;
 
 /**
  * create notification and queue serial data while activity is not in the foreground
@@ -45,12 +46,15 @@ public class SerialService extends Service implements SerialListener {
     }
 
     private final Handler mainLooper;
+    private Handler motorHandler;
     private final IBinder binder;
     private final Queue<QueueItem> queue1, queue2;
 
     private SerialSocket socket;
     private SerialListener listener;
     private boolean connected;
+    private long motorRotateTime = 500; /*.5 s*/
+    private long motorSleepTime = 2000; /*2 s*/
 
     private BlePacket pendingPacket;
     private static SerialService instance;
@@ -77,7 +81,32 @@ public class SerialService extends Service implements SerialListener {
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
         createNotification();
+        startMotorHandler();
         return START_STICKY;
+    }
+
+    private void startMotorHandler() {
+        Looper looper = Looper.myLooper();
+        if(looper != null){
+            motorHandler = new Handler(looper);
+            Runnable timeoutRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (connected) {
+                            write(TextUtil.fromHexString(BGapi.ROTATE_CW));
+                            SystemClock.sleep(motorRotateTime);
+                            write(TextUtil.fromHexString(BGapi.ROTATE_STOP));
+                        }
+                        motorHandler.postDelayed(this, motorSleepTime);
+                    } catch (IOException e) {
+                        Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+                        e.printStackTrace();
+                    }
+                }
+            };
+            motorHandler.post(timeoutRunnable);
+        }
     }
 
     @Override
