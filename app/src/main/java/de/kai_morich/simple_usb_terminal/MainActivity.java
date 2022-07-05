@@ -9,6 +9,7 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.text.InputType;
@@ -36,10 +37,6 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -51,8 +48,8 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     private static Location location;
     private Timer gpsTimer;
     private StorageReference storageRef;
+    private int gpsPeriod = 300000 /*5 min*/;
     private PowerManager.WakeLock wakeLock;
-    private int gpsPeriod = 300000;
 
 
     private final String TAG = SerialService.class.getSimpleName();
@@ -89,6 +86,8 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
         getSupportFragmentManager().addOnBackStackChangedListener(this);
 
         startService(new Intent(this, SensorHelper.class));
+        WorkerWrapper.startFirebaseWorker(getApplicationContext());
+        WorkerWrapper.startSerialWorker(getApplicationContext());
 
         locationPermissionRequest.launch(new String[]{
                 Manifest.permission.ACCESS_FINE_LOCATION,
@@ -120,35 +119,15 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
                     location = newLocation;
                 });
             }
-        }, 0, 300000);
+        }, 0, gpsPeriod);
 
         FirebaseStorage storage = FirebaseStorage.getInstance();
         storageRef = storage.getReference();
-
-        Timer testTimer = new Timer();
-        testTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                testUpload("ActivityTimer");
-            }
-        }, 0, 60000 /*1 minute*/);
-
-        //start wakelock
-        startWakeLock();
-
-        WorkerWrapper.startWorker(getApplicationContext());
 
         if (savedInstanceState == null)
             getSupportFragmentManager().beginTransaction().add(R.id.fragment, new DevicesFragment(), "devices").commit();
         else
             onBackStackChanged();
-    }
-
-    private void startWakeLock() {
-
-        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
-        wakeLock.acquire();
     }
 
     @Override
@@ -245,41 +224,43 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     }
 
     @Override
-    public void onDestroy() {
+    public void onDestroy(){
         gpsTimer.cancel();
+//        stopService(new Intent(this, FirebaseService.class));
+//        stopService(new Intent(this, SerialService.class));
         super.onDestroy();
     }
 
-    public void testUpload(String origin) {
-        FirebaseStorage storage = FirebaseStorage.getInstance();
-        StorageReference storageRef = storage.getReference();
-
-        File path = getExternalFilesDir(null);
-        File file = new File(path, "MainActivity#testUpload.txt");
-        FileWriter fw;
-        try {
-            fw = new FileWriter(file);
-            fw.write("This is some text");
-            fw.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        Uri uri = Uri.fromFile(file);
-        StorageReference fileRef = storageRef.child("test/"
-                + Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)
-                + "/"
-                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
-                + "_"
-                + origin
-                + ".txt");
-        fileRef.putFile(uri);
-    }
+//    public void testUpload(String origin) {
+//        FirebaseStorage storage = FirebaseStorage.getInstance();
+//        StorageReference storageRef = storage.getReference();
+//
+//        File path = getExternalFilesDir(null);
+//        File file = new File(path, "MainActivity#testUpload.txt");
+//        FileWriter fw;
+//        try {
+//            fw = new FileWriter(file);
+//            fw.write("This is some text");
+//            fw.close();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        Uri uri = Uri.fromFile(file);
+//        StorageReference fileRef = storageRef.child("test/"
+//                + Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)
+//                + "/"
+//                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+//                + "_"
+//                + origin
+//                + ".txt");
+//        fileRef.putFile(uri);
+//    }
 
     public void uploadFile(File file) {
         Uri uri = Uri.fromFile(file);
         StorageReference fileRef = storageRef.child("log/"
-                + Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)
-                + "/" + uri.getLastPathSegment());
+                +Settings.Global.getString(getContentResolver(), Settings.Global.DEVICE_NAME)
+                +"/"+uri.getLastPathSegment());
         fileRef.putFile(uri);
     }
 

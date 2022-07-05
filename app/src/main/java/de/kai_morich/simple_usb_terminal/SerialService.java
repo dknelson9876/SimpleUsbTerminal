@@ -12,11 +12,15 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.util.Log;
+import android.widget.Toast;
 import android.os.PowerManager;
 import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
 import java.io.IOException;
@@ -27,11 +31,11 @@ import java.util.Queue;
  * create notification and queue serial data while activity is not in the foreground
  * use listener chain: SerialSocket -> SerialService -> UI fragment
  */
+@RequiresApi(api = Build.VERSION_CODES.O)
 public class SerialService extends Service implements SerialListener {
 
     class SerialBinder extends Binder {
         SerialService getService() {
-            instance = SerialService.this;
             return SerialService.this;
         }
     }
@@ -51,38 +55,80 @@ public class SerialService extends Service implements SerialListener {
     }
 
     private final Handler mainLooper;
+    private Handler motorHandler;
     private final IBinder binder;
     private final Queue<QueueItem> queue1, queue2;
-    private ServiceNotification notification;
-    private static SerialService instance = null;
-    public static SerialService getInstance(){
-        return instance;
-    }
 
     private SerialSocket socket;
     private SerialListener listener;
     private boolean connected;
-    private final String TAG = SerialService.class.getSimpleName();
+    private long motorRotateTime = 500; /*.5 s*/
+    private long motorSleepTime = 4000; /*2 s*/
+    private boolean rotateCW = true;
+    private double lastHeading = 0.0;
+    private final double headingTolerance = 0.1;
 
-    private static final int NOTIFICATION_ID = 2406;
+    private BlePacket pendingPacket;
+    private static SerialService instance;
+
+    public static SerialService getInstance() {
+        return instance;
+    }
+
+
+    private final Runnable rotateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                if (connected) {
+                    write(TextUtil.fromHexString(rotateCW ? BGapi.ROTATE_CW : BGapi.ROTATE_CCW));
+                    SystemClock.sleep(motorRotateTime);
+                    write(TextUtil.fromHexString(BGapi.ROTATE_STOP));
+
+                    double currentHeading = SensorHelper.getHeading();
+//                    Toast.makeText(getApplicationContext(), "|" + lastHeading + " - " + currentHeading + "| = " + Math.abs(lastHeading - currentHeading), Toast.LENGTH_SHORT).show();
+                    if (lastHeading != 0.0
+                            && Math.abs(lastHeading - currentHeading) < headingTolerance) {
+                        rotateCW = !rotateCW;
+                    }
+                    lastHeading = currentHeading;
+                }
+
+                motorHandler.postDelayed(this, motorSleepTime);
+            } catch (IOException e) {
+                Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+                e.printStackTrace();
+            }
+        }
+    };
 
     /**
-     * Lifecylce
+     * Lifecycle
      */
     public SerialService() {
         mainLooper = new Handler(Looper.getMainLooper());
         binder = new SerialBinder();
         queue1 = new LinkedList<>();
         queue2 = new LinkedList<>();
+
+        instance = this;
+
+        startMotorHandler();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
-        notification = new ServiceNotification(this, NOTIFICATION_ID, false);
-        startForeground(NOTIFICATION_ID, notification.getNotification());
+        createNotification();
+        return START_STICKY;
+    }
 
-        return START_REDELIVER_INTENT;
+    private void startMotorHandler() {
+        Looper looper = Looper.myLooper();
+        if (looper != null) {
+            motorHandler = new Handler(looper);
+            motorHandler.post(rotateRunnable);
+        }
     }
 
     @Override
@@ -163,7 +209,7 @@ public class SerialService extends Service implements SerialListener {
     private void createNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel nc = new NotificationChannel(Constants.NOTIFICATION_CHANNEL, "Background service", NotificationManager.IMPORTANCE_LOW);
-            nc.setShowBadge(true);
+            nc.setShowBadge(false);
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             nm.createNotificationChannel(nc);
         }
@@ -173,8 +219,8 @@ public class SerialService extends Service implements SerialListener {
                 .setClassName(this, Constants.INTENT_CLASS_MAIN_ACTIVITY)
                 .setAction(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LAUNCHER);
-        PendingIntent disconnectPendingIntent = PendingIntent.getBroadcast(this, 1, disconnectIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-        PendingIntent restartPendingIntent = PendingIntent.getActivity(this, 1, restartIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent disconnectPendingIntent = PendingIntent.getBroadcast(this, 1, disconnectIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent restartPendingIntent = PendingIntent.getActivity(this, 1, restartIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, Constants.NOTIFICATION_CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setColor(getResources().getColor(R.color.colorPrimary))
@@ -216,6 +262,8 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialConnectError(Exception e) {
         if (connected) {
+            FirebaseService.Companion.getInstance().appendFile(e.getMessage() + "\n");
+            FirebaseService.Companion.getInstance().appendFile(Log.getStackTraceString(e) + "\n");
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {
@@ -238,6 +286,18 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialRead(byte[] data) {
         if (connected) {
+            // parse here to determine if it should be sent to FirebaseService too
+            if (BGapi.isScanReportEvent(data)) {
+                if (pendingPacket != null) {
+                    FirebaseService.Companion.getInstance().appendFile(pendingPacket.toCSV());
+                }
+                pendingPacket = BlePacket.parsePacket(data);
+            } else if (!BGapi.isKnownResponse(data)) {
+                //until the data has a terminator, assume packets that aren't a known header are data that was truncated
+                if (pendingPacket != null)
+                    pendingPacket.appendData(data);
+            }
+
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {
@@ -249,6 +309,7 @@ public class SerialService extends Service implements SerialListener {
                     });
                 } else {
                     queue2.add(new QueueItem(QueueType.Read, data, null));
+//                    FirebaseService.Companion.getInstance().testUpload("SerialService");
                 }
             }
         }
@@ -256,6 +317,8 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialIoError(Exception e) {
         if (connected) {
+            FirebaseService.Companion.getInstance().appendFile(e.getMessage() + "\n");
+            FirebaseService.Companion.getInstance().appendFile(Log.getStackTraceString(e) + "\n");
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {

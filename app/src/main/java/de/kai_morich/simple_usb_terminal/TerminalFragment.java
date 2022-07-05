@@ -43,6 +43,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
+import com.google.firebase.storage.StorageReference;
 import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
@@ -72,9 +73,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private ControlLines controlLines;
     private TextUtil.HexWatcher hexWatcher;
     private BlePacket pendingPacket;
-    private FileWriter fw;
+//    private FileWriter fw;
     private File file;
-    private Timer uploadTimer, motorTimer, testTimer;
+    private Timer uploadTimer, motorTimer;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
@@ -125,22 +126,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         if (service != null)
             service.attach(this);
         else
-            getActivity().startForegroundService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
+            getActivity().startService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
     }
 
     @Override
     public void onStop() {
-//        if (service != null && !getActivity().isChangingConfigurations())
-//            service.detach();
-
-        status("onStop");
-
-        try {
-            fw.write("onStop\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+        if (service != null && !getActivity().isChangingConfigurations())
+            service.detach();
         super.onStop();
     }
 
@@ -149,10 +141,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onAttach(@NonNull Activity activity) {
         super.onAttach(activity);
-        //TODO: broke
-//        status("onAttach");
-//        getActivity().startForegroundService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
-        getActivity().bindService(new Intent(getActivity(), SerialService.class), this, Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT);
+        getActivity().bindService(new Intent(getActivity(), SerialService.class), this, Context.BIND_AUTO_CREATE);
     }
 
     @Override
@@ -161,14 +150,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             getActivity().unbindService(this);
         } catch (Exception ignored) {
         }
-
-        status("onDetach");
-        try {
-            fw.write("onDetach\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         super.onDetach();
     }
 
@@ -189,14 +170,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         getActivity().unregisterReceiver(broadcastReceiver);
         if (controlLines != null)
             controlLines.stop();
-
-        status("onPause");
-        try {
-            fw.write("onPause\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         super.onPause();
     }
 
@@ -252,11 +225,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
         File path = getContext().getExternalFilesDir(null);
         file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt");
-        try {
-            fw = new FileWriter(file);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            fw = new FileWriter(file);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
         receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
 
         uploadTimer = new Timer();
@@ -264,17 +237,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
         motorTimer = new Timer();
 
-        testTimer = new Timer();
-//        testTimer.schedule(new TimerTask() {
-//            @Override
-//            public void run() {
-//                status("testUpload");
-//                Activity act = getActivity();
-//                if (act instanceof MainActivity) {
-//                    ((MainActivity) act).testUpload("FragmentTimer");
-//                }
-//            }
-//        }, 0, 60000 /*1 minute*/);
 
         controlLines = new ControlLines(view);
         return view;
@@ -446,50 +408,34 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void receive(byte[] data) {
-        if (hexEnabled) {
-            if (BGapi.isScanReportEvent(data)) {
-                //original script recorded time, addr, rssi, channel, and data
-                if (pendingPacket != null) {
-                    String msg = pendingPacket.toString();
-                    if (truncate) {
-                        int length = msg.length();
-                        if (length > msg.lastIndexOf('\n') + 40) {
-                            length = msg.lastIndexOf('\n') + 40;
-                        }
-                        msg = msg.substring(0, length) + "…";
+        if (BGapi.isScanReportEvent(data)) {
+            //original script recorded time, addr, rssi, channel, and data
+            if (pendingPacket != null) {
+                String msg = pendingPacket.toString();
+                if (truncate) {
+                    int length = msg.length();
+                    if (length > msg.lastIndexOf('\n') + 40) {
+                        length = msg.lastIndexOf('\n') + 40;
                     }
-                    SpannableStringBuilder spn = new SpannableStringBuilder(msg + "\n\n");
-                    spn.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    receiveText.append(spn);
-                    try {
-                        fw.write(pendingPacket.toCSV());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    msg = msg.substring(0, length) + "…";
                 }
-                pendingPacket = BlePacket.parsePacket(data);
-            } else if (BGapi.isKnownResponse(data)) {
-                receiveText.append(BGapi.getResponseName(data) + '\n');
-            } else {
-                //until the data has a terminator, assume packets that aren't a known header are data that was truncated
-                if (pendingPacket != null)
-                    pendingPacket.appendData(data);
-//                receiveText.append(TextUtil.toHexString(data) + '\n');
+                SpannableStringBuilder spn = new SpannableStringBuilder(msg + "\n\n");
+                spn.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                receiveText.append(spn);
+//                try {
+//                    fw.write(pendingPacket.toCSV());
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
             }
+            pendingPacket = BlePacket.parsePacket(data);
+        } else if (BGapi.isKnownResponse(data)) {
+            receiveText.append(BGapi.getResponseName(data) + '\n');
         } else {
-            String msg = new String(data);
-            if (newline.equals(TextUtil.newline_crlf) && msg.length() > 0) {
-                // don't show CR as ^M if directly before LF
-                msg = msg.replace(TextUtil.newline_crlf, TextUtil.newline_lf);
-                // special handling if CR and LF come in separate fragments
-                if (pendingNewline && msg.charAt(0) == '\n') {
-                    Editable edt = receiveText.getEditableText();
-                    if (edt != null && edt.length() > 1)
-                        edt.replace(edt.length() - 2, edt.length(), "");
-                }
-                pendingNewline = msg.charAt(msg.length() - 1) == '\r';
-            }
-            receiveText.append(TextUtil.toCaretString(msg, newline.length() != 0));
+            //until the data has a terminator, assume packets that aren't a known header are data that was truncated
+            if (pendingPacket != null)
+                pendingPacket.appendData(data);
+//                receiveText.append(TextUtil.toHexString(data) + '\n');
         }
     }
 
@@ -504,11 +450,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.setText("");
 
         //close the fileWriter
-        try {
-            fw.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+//        try {
+//            fw.close();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
 
         //upload the log
         Activity act = getActivity();
@@ -519,29 +465,29 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         //create new file + fileWriter
         File path = getContext().getExternalFilesDir(null);
         file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt");
-        try {
-            fw = new FileWriter(file);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            fw = new FileWriter(file);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
         receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
     }
 
     private void startTimer() {
-        uploadTimer.schedule(new TimerTask() {
-                                 @Override
-                                 public void run() {
-                                     uploadLog();
-                                 }
-                             }, 0,
-                120000 /*2 minutes*/
-//                900000 /*15 minutes*/
-        );
+//        uploadTimer.schedule(new TimerTask() {
+//                                 @Override
+//                                 public void run() {
+//                                     uploadLog();
+//                                 }
+//                             }, 0,
+//                120000 /*2 minutes*/
+////                900000 /*15 minutes*/
+//        );
     }
 
     private void stopTimer() {
-        uploadTimer.cancel();
+//        uploadTimer.cancel();
     }
 
     /*
