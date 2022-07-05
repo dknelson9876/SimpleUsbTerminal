@@ -15,6 +15,9 @@ public class BGapi {
         knownResponses.put("connection_set_default_parameters_rsp", new byte[]{0x20, 0x02, 0x06, 0x00, 0x00, 0x00});
         knownResponses.put("scanner_start_rsp", new byte[]{0x20, 0x02, 0x05, 0x03, 0x00, 0x00});
         knownResponses.put("scanner_stop_rsp", new byte[]{0x20, 0x02, 0x05, 0x05, 0x00, 0x00});
+        knownResponses.put("message_rotate_cw_rsp", new byte[]{0x20, 0x04, (byte) 0xFF, 0x00, 0x00, 0x00, 0x01, 0x01});
+        knownResponses.put("message_rotate_ccw_rsp", new byte[]{0x20, 0x04, (byte) 0xFF, 0x00, 0x00, 0x00, 0x01, 0x02});
+        knownResponses.put("message_rotate_stop_rsp", new byte[]{0x20, 0x04, (byte) 0xFF, 0x00, 0x00, 0x00, 0x01, 0x03});
 
         commands.put("scanner_set_mode", "200205020401");
         commands.put("scanner_set_timing", "200505010410001000");
@@ -36,7 +39,9 @@ public class BGapi {
     public static final String ROTATE_STOP = commands.get("message_rotate_stop");
 
     public static boolean isScanReportEvent(byte[] bytes) {
-        return bytes[0] == (byte) 0xA1 && bytes[1] == 0x00
+        // Note: the casting of 0xA1 is necessary because Java thinks that signed hex should exist?
+        //      and as a result does funny things
+        return bytes.length > 3 && bytes[0] == (byte) 0xA1 && bytes[1] == 0x00
                 && bytes[2] == 0x05 && bytes[3] == 0x01;
     }
 
