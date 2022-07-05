@@ -32,7 +32,9 @@ import java.util.Queue;
 public class SerialService extends Service implements SerialListener {
 
     class SerialBinder extends Binder {
-        SerialService getService() { return SerialService.this; }
+        SerialService getService() {
+            return SerialService.this;
+        }
     }
 
     private enum QueueType {Connect, ConnectError, Read, IoError}
@@ -42,7 +44,11 @@ public class SerialService extends Service implements SerialListener {
         byte[] data;
         Exception e;
 
-        QueueItem(QueueType type, byte[] data, Exception e) { this.type=type; this.data=data; this.e=e; }
+        QueueItem(QueueType type, byte[] data, Exception e) {
+            this.type = type;
+            this.data = data;
+            this.e = e;
+        }
     }
 
     private final Handler mainLooper;
@@ -54,17 +60,47 @@ public class SerialService extends Service implements SerialListener {
     private SerialListener listener;
     private boolean connected;
     private long motorRotateTime = 500; /*.5 s*/
-    private long motorSleepTime = 2000; /*2 s*/
+    private long motorSleepTime = 4000; /*2 s*/
+    private boolean rotateCW = true;
+    private double lastHeading = 0.0;
+    private final double headingTolerance = 0.1;
 
     private BlePacket pendingPacket;
     private static SerialService instance;
 
-    public static SerialService getInstance(){
+    public static SerialService getInstance() {
         return instance;
     }
 
+
+    private final Runnable rotateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                if (connected) {
+                    write(TextUtil.fromHexString(rotateCW ? BGapi.ROTATE_CW : BGapi.ROTATE_CCW));
+                    SystemClock.sleep(motorRotateTime);
+                    write(TextUtil.fromHexString(BGapi.ROTATE_STOP));
+
+                    double currentHeading = SensorHelper.getHeading();
+//                    Toast.makeText(getApplicationContext(), "|" + lastHeading + " - " + currentHeading + "| = " + Math.abs(lastHeading - currentHeading), Toast.LENGTH_SHORT).show();
+                    if (lastHeading != 0.0
+                            && Math.abs(lastHeading - currentHeading) < headingTolerance) {
+                        rotateCW = !rotateCW;
+                    }
+                    lastHeading = currentHeading;
+                }
+
+                motorHandler.postDelayed(this, motorSleepTime);
+            } catch (IOException e) {
+                Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+                e.printStackTrace();
+            }
+        }
+    };
+
     /**
-     * Lifecylce
+     * Lifecycle
      */
     public SerialService() {
         mainLooper = new Handler(Looper.getMainLooper());
@@ -74,38 +110,21 @@ public class SerialService extends Service implements SerialListener {
 
         instance = this;
 
-
+        startMotorHandler();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
         createNotification();
-        startMotorHandler();
         return START_STICKY;
     }
 
     private void startMotorHandler() {
         Looper looper = Looper.myLooper();
-        if(looper != null){
+        if (looper != null) {
             motorHandler = new Handler(looper);
-            Runnable timeoutRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        if (connected) {
-                            write(TextUtil.fromHexString(BGapi.ROTATE_CW));
-                            SystemClock.sleep(motorRotateTime);
-                            write(TextUtil.fromHexString(BGapi.ROTATE_STOP));
-                        }
-                        motorHandler.postDelayed(this, motorSleepTime);
-                    } catch (IOException e) {
-                        Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
-                        e.printStackTrace();
-                    }
-                }
-            };
-            motorHandler.post(timeoutRunnable);
+            motorHandler.post(rotateRunnable);
         }
     }
 
@@ -134,20 +153,20 @@ public class SerialService extends Service implements SerialListener {
     public void disconnect() {
         connected = false; // ignore data,errors while disconnecting
         cancelNotification();
-        if(socket != null) {
+        if (socket != null) {
             socket.disconnect();
             socket = null;
         }
     }
 
     public void write(byte[] data) throws IOException {
-        if(!connected)
+        if (!connected)
             throw new IOException("not connected");
         socket.write(data);
     }
 
     public void attach(SerialListener listener) {
-        if(Looper.getMainLooper().getThread() != Thread.currentThread())
+        if (Looper.getMainLooper().getThread() != Thread.currentThread())
             throw new IllegalArgumentException("not in main thread");
         cancelNotification();
         // use synchronized() to prevent new items in queue2
@@ -155,20 +174,36 @@ public class SerialService extends Service implements SerialListener {
         synchronized (this) {
             this.listener = listener;
         }
-        for(QueueItem item : queue1) {
-            switch(item.type) {
-                case Connect:       listener.onSerialConnect      (); break;
-                case ConnectError:  listener.onSerialConnectError (item.e); break;
-                case Read:          listener.onSerialRead         (item.data); break;
-                case IoError:       listener.onSerialIoError      (item.e); break;
+        for (QueueItem item : queue1) {
+            switch (item.type) {
+                case Connect:
+                    listener.onSerialConnect();
+                    break;
+                case ConnectError:
+                    listener.onSerialConnectError(item.e);
+                    break;
+                case Read:
+                    listener.onSerialRead(item.data);
+                    break;
+                case IoError:
+                    listener.onSerialIoError(item.e);
+                    break;
             }
         }
-        for(QueueItem item : queue2) {
-            switch(item.type) {
-                case Connect:       listener.onSerialConnect      (); break;
-                case ConnectError:  listener.onSerialConnectError (item.e); break;
-                case Read:          listener.onSerialRead         (item.data); break;
-                case IoError:       listener.onSerialIoError      (item.e); break;
+        for (QueueItem item : queue2) {
+            switch (item.type) {
+                case Connect:
+                    listener.onSerialConnect();
+                    break;
+                case ConnectError:
+                    listener.onSerialConnectError(item.e);
+                    break;
+                case Read:
+                    listener.onSerialRead(item.data);
+                    break;
+                case IoError:
+                    listener.onSerialIoError(item.e);
+                    break;
             }
         }
         queue1.clear();
@@ -176,7 +211,7 @@ public class SerialService extends Service implements SerialListener {
     }
 
     public void detach() {
-        if(connected)
+        if (connected)
             createNotification();
         // items already in event queue (posted before detach() to mainLooper) will end up in queue1
         // items occurring later, will be moved directly to queue2
@@ -198,12 +233,12 @@ public class SerialService extends Service implements SerialListener {
                 .setAction(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LAUNCHER);
         PendingIntent disconnectPendingIntent = PendingIntent.getBroadcast(this, 1, disconnectIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        PendingIntent restartPendingIntent = PendingIntent.getActivity(this, 1, restartIntent,  PendingIntent.FLAG_UPDATE_CURRENT| PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent restartPendingIntent = PendingIntent.getActivity(this, 1, restartIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, Constants.NOTIFICATION_CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setColor(getResources().getColor(R.color.colorPrimary))
                 .setContentTitle(getResources().getString(R.string.app_name))
-                .setContentText(socket != null ? "Connected to "+socket.getName() : "Background Service")
+                .setContentText(socket != null ? "Connected to " + socket.getName() : "Background Service")
                 .setContentIntent(restartPendingIntent)
                 .setOngoing(true)
                 .addAction(new NotificationCompat.Action(R.drawable.ic_clear_white_24dp, "Disconnect", disconnectPendingIntent));
@@ -221,7 +256,7 @@ public class SerialService extends Service implements SerialListener {
      * SerialListener
      */
     public void onSerialConnect() {
-        if(connected) {
+        if (connected) {
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {
@@ -239,9 +274,9 @@ public class SerialService extends Service implements SerialListener {
     }
 
     public void onSerialConnectError(Exception e) {
-        if(connected) {
+        if (connected) {
             FirebaseService.Companion.getInstance().appendFile(e.getMessage() + "\n");
-            FirebaseService.Companion.getInstance().appendFile(Log.getStackTraceString(e)+"\n");
+            FirebaseService.Companion.getInstance().appendFile(Log.getStackTraceString(e) + "\n");
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {
@@ -263,7 +298,7 @@ public class SerialService extends Service implements SerialListener {
     }
 
     public void onSerialRead(byte[] data) {
-        if(connected) {
+        if (connected) {
             // parse here to determine if it should be sent to FirebaseService too
             if (BGapi.isScanReportEvent(data)) {
                 if (pendingPacket != null) {
@@ -294,9 +329,9 @@ public class SerialService extends Service implements SerialListener {
     }
 
     public void onSerialIoError(Exception e) {
-        if(connected) {
+        if (connected) {
             FirebaseService.Companion.getInstance().appendFile(e.getMessage() + "\n");
-            FirebaseService.Companion.getInstance().appendFile(Log.getStackTraceString(e)+"\n");
+            FirebaseService.Companion.getInstance().appendFile(Log.getStackTraceString(e) + "\n");
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {
