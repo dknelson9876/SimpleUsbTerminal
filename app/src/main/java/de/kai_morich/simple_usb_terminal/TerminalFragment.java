@@ -425,7 +425,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //                    e.printStackTrace();
 //                }
             }
-            pendingPacket = BlePacket.parsePacket(data);
+            if (data.length <= 21)
+                return;
+
+                pendingPacket = BlePacket.parsePacket(data);
         } else if (BGapi.isKnownResponse(data)) {
             receiveText.append(BGapi.getResponseName(data) + '\n');
         } else {

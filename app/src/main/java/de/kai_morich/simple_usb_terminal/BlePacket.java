@@ -50,7 +50,10 @@ public class BlePacket {
         this.temperature_bytes = meas;
     }
 
+    // returns null if bytes is too short (less than 22
     public static BlePacket parsePacket(byte[] bytes) {
+        if(bytes.length < 21)
+            return null;
         String addr = "";
         for (int i = 10; i > 4; i--) {
             addr += String.format("%02X", bytes[i]) + ":";

@@ -21,6 +21,7 @@ import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -66,7 +67,7 @@ public class SerialService extends Service implements SerialListener {
     private final double headingTolerance = 0.1;
 
     private BlePacket pendingPacket;
-    private byte[] pendingBytes = new byte[1];
+    private byte[] pendingBytes = null;
     private static SerialService instance;
 
     public static SerialService getInstance() {
@@ -284,18 +285,35 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialRead(byte[] data) {
         if (connected) {
-
-
             // parse here to determine if it should be sent to FirebaseService too
             if (BGapi.isScanReportEvent(data)) {
+                //this is the beginning of a new report event, therefore we assume that
+                // the previous packet is complete and save it before parsing the most
+                // recent data
                 if (pendingPacket != null) {
                     FirebaseService.Companion.getInstance().appendFile(pendingPacket.toCSV());
                 }
-                pendingPacket = BlePacket.parsePacket(data);
+
+                BlePacket temp = BlePacket.parsePacket(data);
+                if(temp != null) {
+                    pendingPacket = temp;
+                } else {
+                    pendingBytes = data;
+                }
+
             } else if (!BGapi.isKnownResponse(data)) {
-                //until the data has a terminator, assume packets that aren't a known header are data that was truncated
-                if (pendingPacket != null)
+                if(pendingBytes != null){
+                    pendingBytes = appendByteArray(pendingBytes, data);
+
+                    BlePacket temp = BlePacket.parsePacket(pendingBytes);
+                    if(temp != null){
+                        pendingPacket = temp;
+                        pendingBytes = null;
+                    }
+                }
+                else if (pendingPacket != null) {
                     pendingPacket.appendData(data);
+                }
             }
 
             synchronized (this) {
@@ -313,6 +331,13 @@ public class SerialService extends Service implements SerialListener {
                 }
             }
         }
+    }
+
+    private byte[] appendByteArray(byte[] a, byte[] b) {
+        byte[] temp = new byte[a.length + b.length];
+        System.arraycopy(a, 0, temp, 0, a.length);
+        System.arraycopy(b, 0, temp, a.length, b.length);
+        return temp;
     }
 
     public void onSerialIoError(Exception e) {
