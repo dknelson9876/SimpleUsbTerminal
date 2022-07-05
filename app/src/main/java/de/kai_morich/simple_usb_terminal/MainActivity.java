@@ -9,7 +9,6 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.os.PowerManager;
 import android.provider.Settings;
 import android.text.InputType;
@@ -23,12 +22,12 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
-import androidx.fragment.app.FragmentManager;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.fragment.app.FragmentManager;
 
-import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.CurrentLocationRequest;
+import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.tasks.CancellationToken;
@@ -49,10 +48,6 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
     private Timer gpsTimer;
     private StorageReference storageRef;
     private int gpsPeriod = 300000 /*5 min*/;
-    private PowerManager.WakeLock wakeLock;
-
-
-    private final String TAG = SerialService.class.getSimpleName();
 
     ActivityResultLauncher<String[]> locationPermissionRequest =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {

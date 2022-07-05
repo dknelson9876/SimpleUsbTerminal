@@ -6,7 +6,6 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -20,12 +19,12 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.text.Editable;
 import android.text.InputType;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -43,14 +42,12 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
-import com.google.firebase.storage.StorageReference;
 import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -515,6 +512,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onSerialIoError(Exception e) {
         status("connection lost: " + e.getMessage());
+        Toast.makeText(getContext(), Log.getStackTraceString(e), Toast.LENGTH_SHORT).show();
+        status(Log.getStackTraceString(e));
         disconnect();
     }
 

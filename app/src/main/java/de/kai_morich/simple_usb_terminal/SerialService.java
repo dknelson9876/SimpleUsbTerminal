@@ -15,9 +15,6 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.widget.Toast;
-import android.os.PowerManager;
-import android.util.Log;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -69,6 +66,7 @@ public class SerialService extends Service implements SerialListener {
     private final double headingTolerance = 0.1;
 
     private BlePacket pendingPacket;
+    private byte[] pendingBytes = new byte[1];
     private static SerialService instance;
 
     public static SerialService getInstance() {
@@ -286,6 +284,8 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialRead(byte[] data) {
         if (connected) {
+
+
             // parse here to determine if it should be sent to FirebaseService too
             if (BGapi.isScanReportEvent(data)) {
                 if (pendingPacket != null) {

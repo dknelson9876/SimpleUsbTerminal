@@ -1,7 +1,6 @@
 package de.kai_morich.simple_usb_terminal;
 
 import android.annotation.SuppressLint;
-import android.hardware.SensorManager;
 import android.location.Location;
 
 import java.io.ByteArrayOutputStream;
@@ -10,7 +9,6 @@ import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
-import java.util.Date;
 
 /**
  * https://docs.silabs.com/bluetooth/3.2/group-sl-bt-evt-scanner-scan-report
