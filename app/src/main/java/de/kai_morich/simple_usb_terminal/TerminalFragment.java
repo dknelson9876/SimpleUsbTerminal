@@ -41,6 +41,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -66,7 +67,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private SerialService service;
 
     private TextView receiveText;
-    private TextView sendText;
+//    private TextView sendText;
     private ControlLines controlLines;
     private TextUtil.HexWatcher hexWatcher;
     private BlePacket pendingPacket;
@@ -195,20 +196,29 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.setTextColor(getResources().getColor(R.color.colorRecieveText)); // set as default color to reduce number of spans
         receiveText.setMovementMethod(ScrollingMovementMethod.getInstance());
 
-        sendText = view.findViewById(R.id.send_text);
-        hexWatcher = new TextUtil.HexWatcher(sendText);
-        hexWatcher.enable(hexEnabled);
-        sendText.addTextChangedListener(hexWatcher);
-        sendText.setHint(hexEnabled ? "HEX mode" : "");
+//        sendText = view.findViewById(R.id.send_text);
+//        hexWatcher = new TextUtil.HexWatcher(sendText);
+//        hexWatcher.enable(hexEnabled);
+//        sendText.addTextChangedListener(hexWatcher);
+//        sendText.setHint(hexEnabled ? "HEX mode" : "");
 
-        View sendBtn = view.findViewById(R.id.send_btn);
-        sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
+//        View sendBtn = view.findViewById(R.id.send_btn);
+//        sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
 
         View setupBtn = view.findViewById(R.id.setup_btn);
         setupBtn.setOnClickListener(view1 -> {
             send(BGapi.SCANNER_SET_MODE);
             send(BGapi.SCANNER_SET_TIMING);
             send(BGapi.CONNECTION_SET_PARAMETERS);
+        });
+
+        View stopUploadBtn = view.findViewById(R.id.stop_upload_btn);
+        stopUploadBtn.setOnClickListener(btn -> {
+            Toast.makeText(getContext(), "click!", Toast.LENGTH_SHORT).show();
+            Intent stopIntent = new Intent(getContext(), FirebaseService.ActionListener.class);
+            stopIntent.setAction(FirebaseService.KEY_NOTIFICATION_STOP_ACTION);
+            stopIntent.putExtra(FirebaseService.KEY_NOTIFICATION_ID, ServiceNotification.notificationId);
+            FirebaseService.Companion.getInstance().sendBroadcast(stopIntent);
         });
 
         View startBtn = view.findViewById(R.id.start_btn);
@@ -515,8 +525,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onSerialIoError(Exception e) {
         status("connection lost: " + e.getMessage());
-        Toast.makeText(getContext(), Log.getStackTraceString(e), Toast.LENGTH_SHORT).show();
-        status(Log.getStackTraceString(e));
+//        Toast.makeText(getContext(), Log.getStackTraceString(e), Toast.LENGTH_SHORT).show();
+//        status(Log.getStackTraceString(e));
         disconnect();
     }
 

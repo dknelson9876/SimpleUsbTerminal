@@ -18,14 +18,14 @@ class ServiceNotification @JvmOverloads constructor (
     var notification: Notification? = null
     private var notificationPendingIntent: PendingIntent? = null
     private var notificationManager: NotificationManager? = null
-    private val notificationStopRequestCode = 23
-    private val notificationId = 74
 
     companion object {
         private val TAG : String = Notification::class.java.simpleName
         private val  CHANNEL_ID = TAG
         var notificationIcon = 0
         var notificationText: String? = null
+        const val notificationStopRequestCode = 23
+        const val notificationId = 74
     }
 
     init {
