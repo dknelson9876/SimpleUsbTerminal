@@ -15,16 +15,13 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
 import android.os.SystemClock;
 import android.text.InputType;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -33,34 +30,35 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CompoundButton;
 import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.ToggleButton;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.fragment.app.Fragment;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 
-import java.io.File;
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.EnumSet;
-import java.util.Timer;
-import java.util.TimerTask;
 
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
+
+    private void onSetupClicked(View view1) {
+        send(BGapi.SCANNER_SET_MODE);
+        send(BGapi.SCANNER_SET_TIMING);
+        send(BGapi.CONNECTION_SET_PARAMETERS);
+    }
+
+    private void onStartClicked(View v) {
+        send(BGapi.SCANNER_START);
+    }
 
     private enum Connected {False, Pending, True}
 
@@ -70,19 +68,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private SerialService service;
 
     private TextView receiveText;
-    //    private TextView sendText;
-    private ControlLines controlLines;
-    private TextUtil.HexWatcher hexWatcher;
     private BlePacket pendingPacket;
-    //    private FileWriter fw;
-    private File file;
-    private Timer uploadTimer, motorTimer;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
-    private boolean hexEnabled = true;
-    private boolean controlLinesEnabled = false;
-    private boolean pendingNewline = false;
     private boolean truncate = true;
     private String newline = TextUtil.newline_crlf;
     private int rotatePeriod = 500;
@@ -99,9 +88,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         };
     }
 
-    /*
-     * Lifecycle
-     */
+    //region Lifecycle
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -116,7 +104,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onDestroy() {
         if (connected != Connected.False)
             disconnect();
-        uploadTimer.cancel();
         getActivity().stopService(new Intent(getActivity(), SerialService.class));
         super.onDestroy();
     }
@@ -162,15 +149,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             initialStart = false;
             getActivity().runOnUiThread(this::connect);
         }
-        if (controlLinesEnabled && controlLines != null && connected == Connected.True)
-            controlLines.start();
     }
 
     @Override
     public void onPause() {
         getActivity().unregisterReceiver(broadcastReceiver);
-        if (controlLines != null)
-            controlLines.stop();
         super.onPause();
     }
 
@@ -199,21 +182,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.setTextColor(getResources().getColor(R.color.colorRecieveText)); // set as default color to reduce number of spans
         receiveText.setMovementMethod(ScrollingMovementMethod.getInstance());
 
-//        sendText = view.findViewById(R.id.send_text);
-//        hexWatcher = new TextUtil.HexWatcher(sendText);
-//        hexWatcher.enable(hexEnabled);
-//        sendText.addTextChangedListener(hexWatcher);
-//        sendText.setHint(hexEnabled ? "HEX mode" : "");
-
-//        View sendBtn = view.findViewById(R.id.send_btn);
-//        sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
-
         View setupBtn = view.findViewById(R.id.setup_btn);
-        setupBtn.setOnClickListener(view1 -> {
-            send(BGapi.SCANNER_SET_MODE);
-            send(BGapi.SCANNER_SET_TIMING);
-            send(BGapi.CONNECTION_SET_PARAMETERS);
-        });
+        setupBtn.setOnClickListener(this::onSetupClicked);
 
         View stopUploadBtn = view.findViewById(R.id.stop_upload_btn);
         stopUploadBtn.setOnClickListener(btn -> {
@@ -225,12 +195,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         });
 
         SwitchCompat stopMotorBtn = view.findViewById(R.id.stop_motor_btn);
-//        stopMotorBtn.setOnClickListener(btn -> {
-//            Toast.makeText(getContext(), "Click!!", Toast.LENGTH_SHORT).show();
-//            Intent stopMotorIntent = new Intent(getContext(), SerialService.ActionListener.class);
-//            stopMotorIntent.setAction(SerialService.KEY_STOP_MOTOR_ACTION);
-//            SerialService.getInstance().sendBroadcast(stopMotorIntent);
-//        });
         stopMotorBtn.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -242,27 +206,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         });
 
         View startBtn = view.findViewById(R.id.start_btn);
-        startBtn.setOnClickListener(v -> send(BGapi.SCANNER_START));
+        startBtn.setOnClickListener(this::onStartClicked);
 
         View stopBtn = view.findViewById(R.id.stop_btn);
         stopBtn.setOnClickListener(v -> send(BGapi.SCANNER_STOP));
 
-        File path = getContext().getExternalFilesDir(null);
-        file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt");
-//        try {
-//            fw = new FileWriter(file);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-        receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
+        //TODO switch to get the filename directly from FirebaseService
+        receiveText.append("Writing to " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt" + "\n");
 
-        uploadTimer = new Timer();
-        startTimer();
-
-        motorTimer = new Timer();
-
-
-        controlLines = new ControlLines(view);
         return view;
     }
 
@@ -280,7 +231,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             receiveText.setText("");
             return true;
         } else if (id == R.id.manualUpload) {
-            uploadLog();
+            FirebaseService.Companion.getInstance().uploadLog();
             return true;
         } else if (id == R.id.truncate) {
             truncate = !truncate;
@@ -296,23 +247,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             SystemClock.sleep(500);
             send(BGapi.ROTATE_STOP);
             return true;
-        } else if (id == R.id.autoRotate) {
-            motorTimer = new Timer();
-            motorTimer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    send(BGapi.ROTATE_CW);
-                    SystemClock.sleep(rotatePeriod);
-                    send(BGapi.ROTATE_STOP);
-                }
-            }, 0, rotatePeriod * 2L);
-            return true;
-        } else if (id == R.id.stopAutoRotate) {
-            motorTimer.cancel();
-            return true;
         } else if (id == R.id.editRotate) {
+            //TODO actually change the period in SerialService
             AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-            builder.setTitle("New Rotation Period");
+            builder.setTitle("New Rotation Period UNUSED");
 
             final EditText input = new EditText(getContext());
             input.setInputType(InputType.TYPE_CLASS_TEXT);
@@ -330,6 +268,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             return super.onOptionsItemSelected(item);
         }
     }
+
+    // endregion Lifecycle
 
     /*
      * Serial + UI
@@ -363,7 +303,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         usbSerialPort = driver.getPorts().get(portNum);
         UsbDeviceConnection usbConnection = usbManager.openDevice(driver.getDevice());
         if (usbConnection == null && permissionGranted == null && !usbManager.hasPermission(driver.getDevice())) {
-            PendingIntent usbPermissionIntent = PendingIntent.getBroadcast(getActivity(), 0, new Intent(Constants.INTENT_ACTION_GRANT_USB), 0);
+            PendingIntent usbPermissionIntent = PendingIntent.getBroadcast(getActivity(), 0, new Intent(Constants.INTENT_ACTION_GRANT_USB), PendingIntent.FLAG_IMMUTABLE);
             usbManager.requestPermission(driver.getDevice(), usbPermissionIntent);
             return;
         }
@@ -387,15 +327,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         } catch (Exception e) {
             onSerialConnectError(e);
         }
-        startTimer();
     }
 
     private void disconnect() {
         connected = Connected.False;
-        controlLines.stop();
         service.disconnect();
-        stopTimer();
-
         usbSerialPort = null;
     }
 
@@ -407,16 +343,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         try {
             String msg;
             byte[] data;
-            if (hexEnabled) {
-                StringBuilder sb = new StringBuilder();
-                TextUtil.toHexString(sb, TextUtil.fromHexString(str));
-                TextUtil.toHexString(sb, newline.getBytes());
-                msg = sb.toString();
-                data = TextUtil.fromHexString(msg);
-            } else {
-                msg = str;
-                data = (str + newline).getBytes();
-            }
+            StringBuilder sb = new StringBuilder();
+            TextUtil.toHexString(sb, TextUtil.fromHexString(str));
+            TextUtil.toHexString(sb, newline.getBytes());
+            msg = sb.toString();
+            data = TextUtil.fromHexString(msg);
             if (BGapi.isCommand(str)) {
                 msg = BGapi.getCommandName(str);
             }
@@ -446,23 +377,19 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 SpannableStringBuilder spn = new SpannableStringBuilder(msg + "\n\n");
                 spn.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
                 receiveText.append(spn);
-//                try {
-//                    fw.write(pendingPacket.toCSV());
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
             }
             if (data.length <= 21)
                 return;
 
             pendingPacket = BlePacket.parsePacket(data);
         } else if (BGapi.isKnownResponse(data)) {
-            receiveText.append(BGapi.getResponseName(data) + '\n');
+            String rsp = BGapi.getResponseName(data);
+            if(rsp != null && !rsp.contains("rotate"))
+                receiveText.append(BGapi.getResponseName(data) + '\n');
         } else {
             //until the data has a terminator, assume packets that aren't a known header are data that was truncated
             if (pendingPacket != null)
                 pendingPacket.appendData(data);
-//                receiveText.append(TextUtil.toHexString(data) + '\n');
         }
     }
 
@@ -472,51 +399,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.append(spn);
     }
 
-    private void uploadLog() {
-        //clear the log
-        receiveText.setText("");
-
-        //close the fileWriter
-//        try {
-//            fw.close();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-
-        //upload the log
-        Activity act = getActivity();
-        if (act instanceof MainActivity) {
-            ((MainActivity) act).uploadFile(file);
-        }
-
-        //create new file + fileWriter
-        File path = getContext().getExternalFilesDir(null);
-        file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt");
-//        try {
-//            fw = new FileWriter(file);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-
-        receiveText.append("Writing to " + file.getAbsolutePath() + "\n");
-    }
-
-    private void startTimer() {
-//        uploadTimer.schedule(new TimerTask() {
-//                                 @Override
-//                                 public void run() {
-//                                     uploadLog();
-//                                 }
-//                             }, 0,
-//                120000 /*2 minutes*/
-////                900000 /*15 minutes*/
-//        );
-    }
-
-    private void stopTimer() {
-//        uploadTimer.cancel();
-    }
-
     /*
      * SerialListener
      */
@@ -524,8 +406,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onSerialConnect() {
         status("connected");
         connected = Connected.True;
-        if (controlLinesEnabled)
-            controlLines.start();
+        onSetupClicked(null);
+        onStartClicked(null);
     }
 
     @Override
@@ -542,107 +424,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onSerialIoError(Exception e) {
         status("connection lost: " + e.getMessage());
-//        Toast.makeText(getContext(), Log.getStackTraceString(e), Toast.LENGTH_SHORT).show();
-//        status(Log.getStackTraceString(e));
         disconnect();
-    }
-
-    class ControlLines {
-        private static final int refreshInterval = 200; // ms
-
-        private final Handler mainLooper;
-        private final Runnable runnable;
-        private final LinearLayout frame;
-        private final ToggleButton rtsBtn, ctsBtn, dtrBtn, dsrBtn, cdBtn, riBtn;
-
-        ControlLines(View view) {
-            mainLooper = new Handler(Looper.getMainLooper());
-            runnable = this::run; // w/o explicit Runnable, a new lambda would be created on each postDelayed, which would not be found again by removeCallbacks
-
-            frame = view.findViewById(R.id.controlLines);
-            rtsBtn = view.findViewById(R.id.controlLineRts);
-            ctsBtn = view.findViewById(R.id.controlLineCts);
-            dtrBtn = view.findViewById(R.id.controlLineDtr);
-            dsrBtn = view.findViewById(R.id.controlLineDsr);
-            cdBtn = view.findViewById(R.id.controlLineCd);
-            riBtn = view.findViewById(R.id.controlLineRi);
-            rtsBtn.setOnClickListener(this::toggle);
-            dtrBtn.setOnClickListener(this::toggle);
-        }
-
-        private void toggle(View v) {
-            ToggleButton btn = (ToggleButton) v;
-            if (connected != Connected.True) {
-                btn.setChecked(!btn.isChecked());
-                Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            String ctrl = "";
-            try {
-                if (btn.equals(rtsBtn)) {
-                    ctrl = "RTS";
-                    usbSerialPort.setRTS(btn.isChecked());
-                }
-                if (btn.equals(dtrBtn)) {
-                    ctrl = "DTR";
-                    usbSerialPort.setDTR(btn.isChecked());
-                }
-            } catch (IOException e) {
-                status("set" + ctrl + " failed: " + e.getMessage());
-            }
-        }
-
-        private void run() {
-            if (connected != Connected.True)
-                return;
-            try {
-                EnumSet<UsbSerialPort.ControlLine> controlLines = usbSerialPort.getControlLines();
-                rtsBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.RTS));
-                ctsBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.CTS));
-                dtrBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.DTR));
-                dsrBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.DSR));
-                cdBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.CD));
-                riBtn.setChecked(controlLines.contains(UsbSerialPort.ControlLine.RI));
-                mainLooper.postDelayed(runnable, refreshInterval);
-            } catch (IOException e) {
-                status("getControlLines() failed: " + e.getMessage() + " -> stopped control line refresh");
-            }
-        }
-
-        void start() {
-            frame.setVisibility(View.VISIBLE);
-            if (connected != Connected.True)
-                return;
-            try {
-                EnumSet<UsbSerialPort.ControlLine> controlLines = usbSerialPort.getSupportedControlLines();
-                if (!controlLines.contains(UsbSerialPort.ControlLine.RTS))
-                    rtsBtn.setVisibility(View.INVISIBLE);
-                if (!controlLines.contains(UsbSerialPort.ControlLine.CTS))
-                    ctsBtn.setVisibility(View.INVISIBLE);
-                if (!controlLines.contains(UsbSerialPort.ControlLine.DTR))
-                    dtrBtn.setVisibility(View.INVISIBLE);
-                if (!controlLines.contains(UsbSerialPort.ControlLine.DSR))
-                    dsrBtn.setVisibility(View.INVISIBLE);
-                if (!controlLines.contains(UsbSerialPort.ControlLine.CD))
-                    cdBtn.setVisibility(View.INVISIBLE);
-                if (!controlLines.contains(UsbSerialPort.ControlLine.RI))
-                    riBtn.setVisibility(View.INVISIBLE);
-                run();
-            } catch (IOException e) {
-                Toast.makeText(getActivity(), "getSupportedControlLines() failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        }
-
-        void stop() {
-            frame.setVisibility(View.GONE);
-            mainLooper.removeCallbacks(runnable);
-            rtsBtn.setChecked(false);
-            ctsBtn.setChecked(false);
-            dtrBtn.setChecked(false);
-            dsrBtn.setChecked(false);
-            cdBtn.setChecked(false);
-            riBtn.setChecked(false);
-        }
     }
 
 }
