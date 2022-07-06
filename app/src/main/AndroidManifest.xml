@@ -38,6 +38,7 @@
         <service android:name=".SensorHelper" />
         <service android:name=".FirebaseService" />
         <receiver android:name=".FirebaseService$ActionListener" />
+        <receiver android:name=".SerialService$ActionListener" />
     </application>
 
 </manifest>

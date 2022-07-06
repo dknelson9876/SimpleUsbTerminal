@@ -221,6 +221,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             FirebaseService.Companion.getInstance().sendBroadcast(stopIntent);
         });
 
+        View stopMotorBtn = view.findViewById(R.id.stop_motor_btn);
+        stopMotorBtn.setOnClickListener(btn -> {
+            Toast.makeText(getContext(), "Click!!", Toast.LENGTH_SHORT).show();
+            Intent stopMotorIntent = new Intent(getContext(), SerialService.ActionListener.class);
+            stopMotorIntent.setAction(SerialService.KEY_STOP_MOTOR_ACTION);
+            SerialService.getInstance().sendBroadcast(stopMotorIntent);
+        });
+
         View startBtn = view.findViewById(R.id.start_btn);
         startBtn.setOnClickListener(v -> send(BGapi.SCANNER_START));
 

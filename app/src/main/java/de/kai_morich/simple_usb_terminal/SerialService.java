@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
@@ -69,6 +70,9 @@ public class SerialService extends Service implements SerialListener {
     private BlePacket pendingPacket;
     private byte[] pendingBytes = null;
     private static SerialService instance;
+    private static boolean isMotorRunning = true;
+
+    public static final String KEY_STOP_MOTOR_ACTION = "SerialService.stopMotorAction";
 
     public static SerialService getInstance() {
         return instance;
@@ -93,7 +97,9 @@ public class SerialService extends Service implements SerialListener {
                     lastHeading = currentHeading;
                 }
 
-                motorHandler.postDelayed(this, motorSleepTime);
+                if (isMotorRunning) {
+                    motorHandler.postDelayed(this, motorSleepTime);
+                }
             } catch (IOException e) {
                 Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
                 e.printStackTrace();
@@ -359,6 +365,17 @@ public class SerialService extends Service implements SerialListener {
                     queue2.add(new QueueItem(QueueType.IoError, null, e));
                     cancelNotification();
                     disconnect();
+                }
+            }
+        }
+    }
+
+    public static class ActionListener extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if(intent != null && intent.getAction() != null){
+                if(intent.getAction().equals(KEY_STOP_MOTOR_ACTION)){
+                    isMotorRunning = false;
                 }
             }
         }
