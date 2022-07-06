@@ -31,8 +31,10 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
@@ -40,6 +42,7 @@ import android.widget.ToggleButton;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import androidx.appcompat.widget.SwitchCompat;
 import androidx.fragment.app.Fragment;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
@@ -67,11 +70,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private SerialService service;
 
     private TextView receiveText;
-//    private TextView sendText;
+    //    private TextView sendText;
     private ControlLines controlLines;
     private TextUtil.HexWatcher hexWatcher;
     private BlePacket pendingPacket;
-//    private FileWriter fw;
+    //    private FileWriter fw;
     private File file;
     private Timer uploadTimer, motorTimer;
 
@@ -221,12 +224,21 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             FirebaseService.Companion.getInstance().sendBroadcast(stopIntent);
         });
 
-        View stopMotorBtn = view.findViewById(R.id.stop_motor_btn);
-        stopMotorBtn.setOnClickListener(btn -> {
-            Toast.makeText(getContext(), "Click!!", Toast.LENGTH_SHORT).show();
-            Intent stopMotorIntent = new Intent(getContext(), SerialService.ActionListener.class);
-            stopMotorIntent.setAction(SerialService.KEY_STOP_MOTOR_ACTION);
-            SerialService.getInstance().sendBroadcast(stopMotorIntent);
+        SwitchCompat stopMotorBtn = view.findViewById(R.id.stop_motor_btn);
+//        stopMotorBtn.setOnClickListener(btn -> {
+//            Toast.makeText(getContext(), "Click!!", Toast.LENGTH_SHORT).show();
+//            Intent stopMotorIntent = new Intent(getContext(), SerialService.ActionListener.class);
+//            stopMotorIntent.setAction(SerialService.KEY_STOP_MOTOR_ACTION);
+//            SerialService.getInstance().sendBroadcast(stopMotorIntent);
+//        });
+        stopMotorBtn.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                Intent stopMotorIntent = new Intent(getContext(), SerialService.ActionListener.class);
+                stopMotorIntent.setAction(SerialService.KEY_STOP_MOTOR_ACTION);
+                stopMotorIntent.putExtra(SerialService.KEY_MOTOR_SWITCH_STATE, isChecked);
+                SerialService.getInstance().sendBroadcast(stopMotorIntent);
+            }
         });
 
         View startBtn = view.findViewById(R.id.start_btn);
@@ -234,9 +246,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
         View stopBtn = view.findViewById(R.id.stop_btn);
         stopBtn.setOnClickListener(v -> send(BGapi.SCANNER_STOP));
-
-        View saveBtn = view.findViewById(R.id.save_btn);
-//        saveBtn.setOnClickListener(v -> onSave());
 
         File path = getContext().getExternalFilesDir(null);
         file = new File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt");
@@ -446,7 +455,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             if (data.length <= 21)
                 return;
 
-                pendingPacket = BlePacket.parsePacket(data);
+            pendingPacket = BlePacket.parsePacket(data);
         } else if (BGapi.isKnownResponse(data)) {
             receiveText.append(BGapi.getResponseName(data) + '\n');
         } else {

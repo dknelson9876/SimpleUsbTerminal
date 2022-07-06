@@ -102,7 +102,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:weightSum="4">
+        android:weightSum="3">
 
         <Button
             android:id="@+id/setup_btn"
@@ -125,13 +125,6 @@
             android:layout_weight="1"
             android:text="Stop" />
 
-        <Button
-            android:id="@+id/save_btn"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Save" />
-
     </LinearLayout>
 
     <LinearLayout
@@ -139,26 +132,15 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <!--        <EditText-->
-        <!--            android:id="@+id/send_text"-->
-        <!--            android:layout_width="0dp"-->
-        <!--            android:layout_height="match_parent"-->
-        <!--            android:layout_weight="1"-->
-        <!--            android:inputType="text|textNoSuggestions"-->
-        <!--            android:singleLine="true" />-->
-
-        <!--        <ImageButton-->
-        <!--            android:id="@+id/send_btn"-->
-        <!--            android:layout_width="wrap_content"-->
-        <!--            android:layout_height="wrap_content"-->
-        <!--            app:srcCompat="@drawable/ic_send_white_24dp" />-->
-
-        <Button
+        <androidx.appcompat.widget.SwitchCompat
+            android:paddingStart="8dp"
             android:id="@+id/stop_motor_btn"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Stop Motor" />
+            android:text="Auto Rotate Motor"
+            android:checked="true"
+            />
 
         <Button
             android:id="@+id/stop_upload_btn"

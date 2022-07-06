@@ -33,6 +33,7 @@ import java.util.Queue;
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class SerialService extends Service implements SerialListener {
 
+
     class SerialBinder extends Binder {
         SerialService getService() {
             return SerialService.this;
@@ -73,6 +74,7 @@ public class SerialService extends Service implements SerialListener {
     private static boolean isMotorRunning = true;
 
     public static final String KEY_STOP_MOTOR_ACTION = "SerialService.stopMotorAction";
+    public static final String KEY_MOTOR_SWITCH_STATE = "SerialService.motorSwitchState";
 
     public static SerialService getInstance() {
         return instance;
@@ -375,7 +377,11 @@ public class SerialService extends Service implements SerialListener {
         public void onReceive(Context context, Intent intent) {
             if(intent != null && intent.getAction() != null){
                 if(intent.getAction().equals(KEY_STOP_MOTOR_ACTION)){
-                    isMotorRunning = false;
+//                    isMotorRunning = false;
+                    isMotorRunning = intent.getBooleanExtra(KEY_MOTOR_SWITCH_STATE, false);
+                    if(isMotorRunning){
+                        SerialService.getInstance().startMotorHandler();
+                    }
                 }
             }
         }
