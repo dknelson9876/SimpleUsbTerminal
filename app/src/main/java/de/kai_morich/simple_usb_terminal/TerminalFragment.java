@@ -407,6 +407,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         status("connected");
         connected = Connected.True;
         onSetupClicked(null);
+        //TODO delay via custom Handler/Looper
         onStartClicked(null);
     }
 
