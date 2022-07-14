@@ -63,7 +63,7 @@ public class SerialService extends Service implements SerialListener {
     private SerialListener listener;
     private boolean connected;
     private long motorRotateTime = 500; /*.5 s*/
-    private long motorSleepTime = 4000; /*2 s*/
+    private long motorSleepTime = 30000; /*30 s*/
     private boolean rotateCW = true;
     private double lastHeading = 0.0;
     private final double headingTolerance = 0.1;
