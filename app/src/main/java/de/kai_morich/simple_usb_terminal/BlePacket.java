@@ -24,11 +24,9 @@ public class BlePacket {
     private byte channel;
     private byte packet_type;
     private byte[] data;
-    private double temperature;
-    private byte[] temperature_bytes;
 
     @SuppressLint("NewApi")
-    public BlePacket(String addr, byte rssi, byte channel, byte packet_type, byte[] data, float temperature, byte[] meas) {
+    public BlePacket(String addr, byte rssi, byte channel, byte packet_type, byte[] data) {
         time = LocalDateTime.now();
         heading = SensorHelper.getHeading();
 
@@ -46,8 +44,6 @@ public class BlePacket {
         this.channel = channel;
         this.packet_type = packet_type;
         this.data = data;
-        this.temperature = temperature;
-        this.temperature_bytes = meas;
     }
 
     // returns null if bytes is too short (less than 22
@@ -64,23 +60,7 @@ public class BlePacket {
         byte channel = bytes[18];
         byte[] data = Arrays.copyOfRange(bytes, 21, bytes.length);
 
-        float temperature = 0.0f;
-        byte[] meas = new byte[4];
-        if (data.length > 42) {
-            meas = Arrays.copyOfRange(data, 39, 43);
-            meas = reverseArray(meas);
-            temperature = ByteBuffer.wrap(meas).getFloat();
-        }
-
-        return new BlePacket(addr, rssi, channel, packet_type, data, temperature, meas);
-    }
-
-    public static byte[] reverseArray(byte[] bytes) {
-        byte[] toreturn = new byte[bytes.length];
-        for (int i = 0; i < bytes.length; i++) {
-            toreturn[i] = bytes[bytes.length - 1 - i];
-        }
-        return toreturn;
+        return new BlePacket(addr, rssi, channel, packet_type, data);
     }
 
 
@@ -106,8 +86,6 @@ public class BlePacket {
                 + "\nRSSI: " + rssi
                 + "\nChannel: " + (channel & 0xFF /*'cast' to unsigned*/)
                 + "\nPacket Type: 0x" + String.format("%02X", packet_type)
-                + "\nTemperature: " + temperature + " deg"
-                + "\nTemper Bytes: " + TextUtil.toHexString(temperature_bytes)
                 + "\nData: " + TextUtil.toHexString(data);
     }
 
@@ -120,8 +98,6 @@ public class BlePacket {
                 + "," + addr
                 + "," + rssi
                 + "," + (channel & 0xFF)
-                + "," + temperature
-                + "," + TextUtil.toHexString(temperature_bytes)
                 + "," + TextUtil.toHexString(data) + "\n";
     }
 
