@@ -3,6 +3,8 @@ package de.kai_morich.simple_usb_terminal;
 import android.annotation.SuppressLint;
 import android.location.Location;
 
+import androidx.annotation.NonNull;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -11,6 +13,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 
 /**
+ * A class that holds all the details we want out of a BT packet received by the Gecko
+ *
  * https://docs.silabs.com/bluetooth/3.2/group-sl-bt-evt-scanner-scan-report
  */
 
@@ -25,8 +29,12 @@ public class BlePacket {
     private byte packet_type;
     private byte[] data;
 
+    /**
+     * Constructor that grabs all necessary details about the current state of the device
+     *  (datetime, heading, location), and stores them with the details of the packet
+     * */
     @SuppressLint("NewApi")
-    public BlePacket(String addr, byte rssi, byte channel, byte packet_type, byte[] data) {
+    private BlePacket(String addr, byte rssi, byte channel, byte packet_type, byte[] data) {
         time = LocalDateTime.now();
         heading = SensorHelper.getHeading();
 
@@ -46,7 +54,11 @@ public class BlePacket {
         this.data = data;
     }
 
-    // returns null if bytes is too short (less than 22
+    /**
+     * Given a byte[] that is long enough, parses and returns the new organized BlePacket
+     *  object representing the data that was received and the state of the device
+     *
+     * @return the newly created packet, or null if bytes was too short*/
     public static BlePacket parsePacket(byte[] bytes) {
         if(bytes.length < 21)
             return null;
@@ -63,7 +75,9 @@ public class BlePacket {
         return new BlePacket(addr, rssi, channel, packet_type, data);
     }
 
-
+    /**
+     * Adds the contents of bytes to the end of the data of an already existing packet
+     * */
     public void appendData(byte[] bytes) {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         try {
@@ -75,6 +89,11 @@ public class BlePacket {
         }
     }
 
+
+    /**
+     * Returns the contents of this packet in a human readable form
+     * */
+    @NonNull
     @SuppressLint("NewApi")
     @Override
     public String toString() {
@@ -89,6 +108,9 @@ public class BlePacket {
                 + "\nData: " + TextUtil.toHexString(data);
     }
 
+    /**
+     * Returns the contents of this packet formatted as a single line for a csv file
+     * */
     @SuppressLint("NewApi")
     public String toCSV() {
         return time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))

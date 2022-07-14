@@ -27,7 +27,14 @@ import com.hoho.android.usbserial.driver.UsbSerialProber;
 import java.util.ArrayList;
 import java.util.Locale;
 
-
+/**
+ * The original portion of what was initially displayed to the user. Handles listing all
+ *  currently connected USB devices and noting which ones we already know how to talk to
+ *  using the usb-serial-for-android library, then opening a new TerminalFragment when
+ *  one of the devices is selected from the list
+ *
+ *  Also handles automatically connecting to a Gecko if one is found
+ * */
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class DevicesFragment extends ListFragment {
 
@@ -112,10 +119,6 @@ public class DevicesFragment extends ListFragment {
             builder.create().show();
             return true;
         } else if (id == R.id.upload) {
-//            Activity act = getActivity();
-//            if (act instanceof MainActivity) {
-//                ((MainActivity) act).testUpload("ManualOption");
-//            }
             try {
                 FirebaseService.Companion.getInstance().testUpload("ManualOption");
             } catch (Exception e) {
@@ -152,6 +155,10 @@ public class DevicesFragment extends ListFragment {
         listAdapter.notifyDataSetChanged();
     }
 
+    /**
+     * Creates and switches to a new TerminalFragment that is connected to
+     * the device that was clicked on
+     * */
     @Override
     public void onListItemClick(ListView l, View v, int position, long id) {
         ListItem item = listItems.get(position - 1);

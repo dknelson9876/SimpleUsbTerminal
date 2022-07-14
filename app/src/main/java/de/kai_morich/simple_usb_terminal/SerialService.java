@@ -27,7 +27,19 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 /**
- * create notification and queue serial data while activity is not in the foreground
+ * Service that serves as our end of communication with the Gecko device. Because I forked this
+ * from a separate demo app to get a jump start, this class probably can be narrowed down.
+ *
+ * The queues serve as a buffer for the messages received during the times where a socket
+ *  has been connected to a device, but no UI elements have subscribed to receive those
+ *  messages yet. As a workaround for now, received packets are parsed here and sent to
+ *  FirebaseService to one of its methods
+ *
+ * This means there is some duplicate logic going on in FirebaseService and TerminalFragment,
+ *  and most likely remains the messiest part of this app. One way to fix this might be to
+ *  adapt this to have a list of SerialListeners that can subscribe via attach()
+ *
+ *
  * use listener chain: SerialSocket -> SerialService -> UI fragment
  */
 @RequiresApi(api = Build.VERSION_CODES.O)
@@ -59,19 +71,25 @@ public class SerialService extends Service implements SerialListener {
     private final IBinder binder;
     private final Queue<QueueItem> queue1, queue2;
 
+    // The representation of the actual connection
     private SerialSocket socket;
+    // The object that wants to be forwarded the events from this service
     private SerialListener listener;
     private boolean connected;
+
+    // rotation variables
     private long motorRotateTime = 500; /*.5 s*/
     private long motorSleepTime = 30000; /*30 s*/
     private boolean rotateCW = true;
     private double lastHeading = 0.0;
+    //in degrees, if the last time the motor moved less than this amount,
+    // we assume the motor has stopped us and it is time to turn around
     private final double headingTolerance = 0.1;
+    private static boolean isMotorRunning = true;
 
     private BlePacket pendingPacket;
     private byte[] pendingBytes = null;
     private static SerialService instance;
-    private static boolean isMotorRunning = true;
 
     public static final String KEY_STOP_MOTOR_ACTION = "SerialService.stopMotorAction";
     public static final String KEY_MOTOR_SWITCH_STATE = "SerialService.motorSwitchState";
@@ -81,6 +99,7 @@ public class SerialService extends Service implements SerialListener {
     }
 
 
+    // The packaged code sample that moves the motor and checks if it is time to turn around
     private final Runnable rotateRunnable = new Runnable() {
         @Override
         public void run() {
@@ -91,7 +110,9 @@ public class SerialService extends Service implements SerialListener {
                     write(TextUtil.fromHexString(BGapi.ROTATE_STOP));
 
                     double currentHeading = SensorHelper.getHeading();
-//                    Toast.makeText(getApplicationContext(), "|" + lastHeading + " - " + currentHeading + "| = " + Math.abs(lastHeading - currentHeading), Toast.LENGTH_SHORT).show();
+                    //Did we actually move as a result of trying to move, or is it time to turn around?
+                    // (This works because the motor currently being used physically stops itself
+                    //  from rotating too far)
                     if (lastHeading != 0.0
                             && Math.abs(lastHeading - currentHeading) < headingTolerance) {
                         rotateCW = !rotateCW;
@@ -99,6 +120,7 @@ public class SerialService extends Service implements SerialListener {
                     lastHeading = currentHeading;
                 }
 
+                //As long as we are to continue moving, schedule this method to be run again
                 if (isMotorRunning) {
                     motorHandler.postDelayed(this, motorSleepTime);
                 }
@@ -123,6 +145,11 @@ public class SerialService extends Service implements SerialListener {
         startMotorHandler();
     }
 
+    /**
+     * Called by the system when another part of this app calls startService()
+     * Shows the notification that is required by the system to signal that we will be
+     * using constant access to system resources and sensors
+     * */
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
@@ -130,6 +157,9 @@ public class SerialService extends Service implements SerialListener {
         return START_STICKY;
     }
 
+    /**
+     * Create the Handler that will regularly call the code in rotateRunnable
+     * */
     private void startMotorHandler() {
         Looper looper = Looper.myLooper();
         if (looper != null) {
@@ -138,6 +168,9 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    /**
+     * Called by the system hopefully never since the app should never die
+     * */
     @Override
     public void onDestroy() {
         cancelNotification();
@@ -145,21 +178,35 @@ public class SerialService extends Service implements SerialListener {
         super.onDestroy();
     }
 
+    /**
+     * Inherited from Service
+     * Called when a Fragment or Activity tries to bind to this service
+     * in order to communicate with it
+     * */
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
         return binder;
     }
 
+    //endregion
+
+    //region API
+
     /**
-     * Api
-     */
+     * Called by TerminalFragment after it has created a SerialSocket and given it the details
+     * necessary to open a connection to a USB serial device
+     * Connects to the device
+     * */
     public void connect(SerialSocket socket) throws IOException {
         socket.connect(this);
         this.socket = socket;
         connected = true;
     }
 
+    /**
+     * Disconnect from the USB serial device and remove the socket
+     * */
     public void disconnect() {
         connected = false; // ignore data,errors while disconnecting
         cancelNotification();
@@ -169,13 +216,24 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    /**
+     * Write data to the USB serial device through the socket
+     * Throws IOException if not currently connected to a device
+     * */
     public void write(byte[] data) throws IOException {
         if (!connected)
             throw new IOException("not connected");
         socket.write(data);
     }
 
+    /**
+     * Subscribe to any serial events that occur from the connected device
+     * May immediately send events that were queued since last connection
+     *
+     * This method is expected to be used by UI elements i.e. TerminalFragment
+     * */
     public void attach(SerialListener listener) {
+        //Not entirely sure why this is necessary
         if (Looper.getMainLooper().getThread() != Thread.currentThread())
             throw new IllegalArgumentException("not in main thread");
         cancelNotification();
@@ -213,6 +271,9 @@ public class SerialService extends Service implements SerialListener {
         listener = null;
     }
 
+    /**
+     * Creates a configures the constant notification required by the system
+     * Then shows this notification and promotes this service to a ForegroundService*/
     private void createNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel nc = new NotificationChannel(Constants.NOTIFICATION_CHANNEL, "Background service", NotificationManager.IMPORTANCE_LOW);
@@ -246,9 +307,18 @@ public class SerialService extends Service implements SerialListener {
         stopForeground(true);
     }
 
+    //endregion
+
+    //region SerialListener
+
     /**
-     * SerialListener
+     *  Each of these methods either forwards the event on to the listener that subscribed via
+     *  attach(), or queues it to be forwarded when a listener becomes available again
+     *
+     *  With the exception of onSerialRead, which also parses the data and sends packets
+     *  to FirebaseService
      */
+
     public void onSerialConnect() {
         if (connected) {
             synchronized (this) {
