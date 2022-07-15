@@ -363,37 +363,49 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialRead(byte[] data) {
         if (connected) {
+            //TODO find a more organized way to do this parsing
+
             // parse here to determine if it should be sent to FirebaseService too
             if (BGapi.isScanReportEvent(data)) {
                 //this is the beginning of a new report event, therefore we assume that
-                // the previous packet is complete and save it before parsing the most
+                // if a packet is pending, it is complete and save it before parsing the most
                 // recent data
                 if (pendingPacket != null) {
                     FirebaseService.Companion.getInstance().appendFile(pendingPacket.toCSV());
                 }
 
                 BlePacket temp = BlePacket.parsePacket(data);
+                //did the new data parse successfully?
                 if(temp != null) {
+                    //Yes - save the packet
                     pendingPacket = temp;
                 } else {
+                    //No - save the raw bytes
                     pendingBytes = data;
                 }
 
             } else if (!BGapi.isKnownResponse(data)) {
+                //If the data isn't any kind of thing we can recognize, assume it's incomplete
+
+                //If there's already partial data waiting
                 if(pendingBytes != null){
+                    //add this data to the end of it
                     pendingBytes = appendByteArray(pendingBytes, data);
 
+                    //and try to parse it again
                     BlePacket temp = BlePacket.parsePacket(pendingBytes);
                     if(temp != null){
                         pendingPacket = temp;
                         pendingBytes = null;
                     }
                 }
+                //and it not, try to add it to the end of pending packet
                 else if (pendingPacket != null) {
                     pendingPacket.appendData(data);
                 }
             }
 
+            //original content of method
             synchronized (this) {
                 if (listener != null) {
                     mainLooper.post(() -> {
@@ -405,12 +417,14 @@ public class SerialService extends Service implements SerialListener {
                     });
                 } else {
                     queue2.add(new QueueItem(QueueType.Read, data, null));
-//                    FirebaseService.Companion.getInstance().testUpload("SerialService");
                 }
             }
         }
     }
 
+    /**
+     * Given two byte arrays a,b, returns a new byte array that has appended b to the end of a
+     **/
     private byte[] appendByteArray(byte[] a, byte[] b) {
         byte[] temp = new byte[a.length + b.length];
         System.arraycopy(a, 0, temp, 0, a.length);
@@ -442,12 +456,18 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    /**
+     * A custom BroadcastReceiver that can receive intents from the switch button in TerminalFragment
+     * and toggles motor rotation
+     * TODO: find a way to interrupt an already scheduled handler so that the
+     * motor stops immediately on the switch being pushed
+     * (It currently only stops after the next time it rotates)
+     * */
     public static class ActionListener extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             if(intent != null && intent.getAction() != null){
                 if(intent.getAction().equals(KEY_STOP_MOTOR_ACTION)){
-//                    isMotorRunning = false;
                     isMotorRunning = intent.getBooleanExtra(KEY_MOTOR_SWITCH_STATE, false);
                     if(isMotorRunning){
                         SerialService.getInstance().startMotorHandler();
