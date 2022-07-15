@@ -6,6 +6,9 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 
+/**
+ * A wrapper class that makes it easier to start a given service
+ * */
 class WorkerWrapper {
     companion object {
         @JvmStatic fun startFirebaseWorker(context: Context){

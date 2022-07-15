@@ -9,6 +9,12 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 
+/**
+ * A class that handles creating notifications. Adapted not very well from another online source
+ *
+ *
+ * TODO: unify use of notifications throughout app
+ * */
 class ServiceNotification @JvmOverloads constructor (
     private var context: Context,
     private val mId: Int,
