@@ -15,6 +15,7 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.text.InputType;
@@ -327,6 +328,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             status("connection failed: not enough ports at device");
             return;
         }
+        //TODO: Non-UI logic - should not be in a UI class
         usbSerialPort = driver.getPorts().get(portNum);
         UsbDeviceConnection usbConnection = usbManager.openDevice(driver.getDevice());
         if (usbConnection == null && permissionGranted == null && !usbManager.hasPermission(driver.getDevice())) {
@@ -372,6 +374,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             return;
         }
         try {
+            //TODO: Non-UI logic - should not be in UI class
             String msg;
             byte[] data;
             StringBuilder sb = new StringBuilder();
@@ -401,6 +404,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private void receive(byte[] data) {
         if (BGapi.isScanReportEvent(data)) {
             //original script recorded time, addr, rssi, channel, and data
+            //TODO: Non-UI logic - should not be in UI class
             if (pendingPacket != null) {
                 String msg = pendingPacket.toString();
                 if (truncate) {
@@ -447,9 +451,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onSerialConnect() {
         status("connected");
         connected = Connected.True;
-        onSetupClicked(null);
-        //TODO delay via custom Handler/Looper
-        onStartClicked(null);
+        //send setup and start commands after delay via custom Handler
+        Handler handler = new Handler();
+        Runnable clickSetup = () -> onSetupClicked(null);
+        handler.postDelayed(clickSetup, 500);
+        Runnable clickStart = () -> onStartClicked(null);
+        handler.postDelayed(clickStart, 800);
     }
 
     @Override
