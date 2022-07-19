@@ -8,6 +8,10 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 
+/**
+ * A custom BroadcastReceiver subclass that receives intents for when
+ * the system has rebooted and restarts the services this app needs
+ * */
 class RestarterBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         startWorker(context)

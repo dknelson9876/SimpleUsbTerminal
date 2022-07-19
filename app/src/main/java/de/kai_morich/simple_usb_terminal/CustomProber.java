@@ -12,6 +12,7 @@ import com.hoho.android.usbserial.driver.UsbSerialProber;
  */
 class CustomProber {
 
+    //ensures that the usb-serial-for-android library knows how to communicate with the Gecko
     static UsbSerialProber getCustomProber() {
         ProbeTable customTable = new ProbeTable();
         customTable.addProduct(0x16d0, 0x087e, CdcAcmSerialDriver.class); // e.g. Digispark CDC

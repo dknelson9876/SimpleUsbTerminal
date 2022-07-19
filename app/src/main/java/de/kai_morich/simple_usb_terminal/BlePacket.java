@@ -3,6 +3,8 @@ package de.kai_morich.simple_usb_terminal;
 import android.annotation.SuppressLint;
 import android.location.Location;
 
+import androidx.annotation.NonNull;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -11,6 +13,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 
 /**
+ * A class that holds all the details we want out of a BT packet received by the Gecko
+ *
  * https://docs.silabs.com/bluetooth/3.2/group-sl-bt-evt-scanner-scan-report
  */
 
@@ -24,11 +28,13 @@ public class BlePacket {
     private byte channel;
     private byte packet_type;
     private byte[] data;
-    private double temperature;
-    private byte[] temperature_bytes;
 
+    /**
+     * Constructor that grabs all necessary details about the current state of the device
+     *  (datetime, heading, location), and stores them with the details of the packet
+     * */
     @SuppressLint("NewApi")
-    public BlePacket(String addr, byte rssi, byte channel, byte packet_type, byte[] data, float temperature, byte[] meas) {
+    private BlePacket(String addr, byte rssi, byte channel, byte packet_type, byte[] data) {
         time = LocalDateTime.now();
         heading = SensorHelper.getHeading();
 
@@ -46,11 +52,13 @@ public class BlePacket {
         this.channel = channel;
         this.packet_type = packet_type;
         this.data = data;
-        this.temperature = temperature;
-        this.temperature_bytes = meas;
     }
 
-    // returns null if bytes is too short (less than 22
+    /**
+     * Given a byte[] that is long enough, parses and returns the new organized BlePacket
+     *  object representing the data that was received and the state of the device
+     *
+     * @return the newly created packet, or null if bytes was too short*/
     public static BlePacket parsePacket(byte[] bytes) {
         if(bytes.length < 21)
             return null;
@@ -64,26 +72,12 @@ public class BlePacket {
         byte channel = bytes[18];
         byte[] data = Arrays.copyOfRange(bytes, 21, bytes.length);
 
-        float temperature = 0.0f;
-        byte[] meas = new byte[4];
-        if (data.length > 42) {
-            meas = Arrays.copyOfRange(data, 39, 43);
-            meas = reverseArray(meas);
-            temperature = ByteBuffer.wrap(meas).getFloat();
-        }
-
-        return new BlePacket(addr, rssi, channel, packet_type, data, temperature, meas);
+        return new BlePacket(addr, rssi, channel, packet_type, data);
     }
 
-    public static byte[] reverseArray(byte[] bytes) {
-        byte[] toreturn = new byte[bytes.length];
-        for (int i = 0; i < bytes.length; i++) {
-            toreturn[i] = bytes[bytes.length - 1 - i];
-        }
-        return toreturn;
-    }
-
-
+    /**
+     * Adds the contents of bytes to the end of the data of an already existing packet
+     * */
     public void appendData(byte[] bytes) {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         try {
@@ -95,6 +89,11 @@ public class BlePacket {
         }
     }
 
+
+    /**
+     * Returns the contents of this packet in a human readable form
+     * */
+    @NonNull
     @SuppressLint("NewApi")
     @Override
     public String toString() {
@@ -106,11 +105,12 @@ public class BlePacket {
                 + "\nRSSI: " + rssi
                 + "\nChannel: " + (channel & 0xFF /*'cast' to unsigned*/)
                 + "\nPacket Type: 0x" + String.format("%02X", packet_type)
-                + "\nTemperature: " + temperature + " deg"
-                + "\nTemper Bytes: " + TextUtil.toHexString(temperature_bytes)
                 + "\nData: " + TextUtil.toHexString(data);
     }
 
+    /**
+     * Returns the contents of this packet formatted as a single line for a csv file
+     * */
     @SuppressLint("NewApi")
     public String toCSV() {
         return time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
@@ -120,8 +120,6 @@ public class BlePacket {
                 + "," + addr
                 + "," + rssi
                 + "," + (channel & 0xFF)
-                + "," + temperature
-                + "," + TextUtil.toHexString(temperature_bytes)
                 + "," + TextUtil.toHexString(data) + "\n";
     }
 

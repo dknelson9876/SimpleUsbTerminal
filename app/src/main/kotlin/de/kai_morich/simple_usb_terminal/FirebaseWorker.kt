@@ -11,6 +11,10 @@ import androidx.work.WorkerParameters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/**
+ * A wrapper class for starting an instance of FirebaseService that makes it less likely
+ * to get put to sleep by the system
+ * */
 @RequiresApi(Build.VERSION_CODES.O)
 class FirebaseWorker(private val context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
 
@@ -19,6 +23,10 @@ class FirebaseWorker(private val context: Context, workerParams: WorkerParameter
         private var NOTIFICATION_ID = 9973
     }
 
+    /**
+     * Inherited form CoroutineWorker.
+     * Starts a new instance of FirebaseService if one does not already exist
+     * */
     override suspend fun doWork(): Result {
         //do not launch if the service is already alive
         if(FirebaseService.instance == null){
@@ -38,6 +46,9 @@ class FirebaseWorker(private val context: Context, workerParams: WorkerParameter
         return Result.success()
     }
 
+    /**
+     * Required by the system because reasons
+     * */
     override suspend fun getForegroundInfo(): ForegroundInfo {
         ServiceNotification.notificationText = "do not close the app, please"
         ServiceNotification.notificationIcon = R.mipmap.ic_launcher

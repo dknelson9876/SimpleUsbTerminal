@@ -4,6 +4,13 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * A wrapper class for the constants we use to communicate with the Gecko.
+ *
+ * While these technically should be findable in Silicon Lab's documentation, it's a lot easier
+ *  to open up the NCP Commander in Simplicity Studio, manually send the commands there, and turn
+ *  on the option to display the bytes that were sent
+ * */
 public class BGapi {
 
     private static final HashMap<String, byte[]> knownResponses = new HashMap<>();

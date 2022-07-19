@@ -15,6 +15,7 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.text.InputType;
@@ -47,6 +48,11 @@ import com.hoho.android.usbserial.driver.UsbSerialProber;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * The UI portion of the app that is displayed while connected to a USB serial device
+ * There's a lot of non-UI logic still in here that needs to be cleaned up and/or removed
+ * entirely as we won't actually use it
+ * */
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
 
@@ -90,6 +96,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     //region Lifecycle
 
+    /**
+     * Inherited from Fragment. One of the first methods that the system will call
+     * after the constructor. Retrieves the information about the device to connect to
+     * that was sent over by the DevicesFragment
+     * */
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -100,6 +111,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         baudRate = getArguments().getInt("baud");
     }
 
+    /**
+     * Inherited from Fragment. Called by the system when the app gets closed
+     * */
     @Override
     public void onDestroy() {
         if (connected != Connected.False)
@@ -108,6 +122,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         super.onDestroy();
     }
 
+    /**
+     * Inherited from Fragment. Called by the system
+     * */
     @Override
     public void onStart() {
         super.onStart();
@@ -117,6 +134,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             getActivity().startService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
     }
 
+    /**
+     * Inherited from Fragment. Called by the system. Unsubscribes from messages from the serial device
+     * as this Fragment is no longer being displayed
+     * */
     @Override
     public void onStop() {
         if (service != null && !getActivity().isChangingConfigurations())
@@ -172,9 +193,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         service = null;
     }
 
-    /*
-     * UI
-     */
+
+
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_terminal, container, false);
@@ -217,7 +237,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         return view;
     }
 
-
+    /**
+     * Inherited from Fragment. The Options menu is the 3 dots in the top right corner
+     * */
     @Override
     public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.menu_terminal, menu);
@@ -271,13 +293,19 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     // endregion Lifecycle
 
-    /*
-     * Serial + UI
-     */
+    //region Serial
+
+
     private void connect() {
         connect(null);
     }
 
+    /**
+     * Do all the listing and check required to connect to the USB device using the details
+     * that were passed when this Fragment was started
+     * But some of this seems like duplicate logic from DevicesFragment, so this might be able
+     * to be reduced
+     * */
     private void connect(Boolean permissionGranted) {
         UsbDevice device = null;
         UsbManager usbManager = (UsbManager) getActivity().getSystemService(Context.USB_SERVICE);
@@ -300,6 +328,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             status("connection failed: not enough ports at device");
             return;
         }
+        //TODO: Non-UI logic - should not be in a UI class
         usbSerialPort = driver.getPorts().get(portNum);
         UsbDeviceConnection usbConnection = usbManager.openDevice(driver.getDevice());
         if (usbConnection == null && permissionGranted == null && !usbManager.hasPermission(driver.getDevice())) {
@@ -335,12 +364,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         usbSerialPort = null;
     }
 
+    /**
+     * Send a String to the currently connected serial device. Returns immediately if no
+     * device is connected. Additionally appends the sent information to the text on screen
+     * */
     private void send(String str) {
         if (connected != Connected.True) {
             Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
             return;
         }
         try {
+            //TODO: Non-UI logic - should not be in UI class
             String msg;
             byte[] data;
             StringBuilder sb = new StringBuilder();
@@ -362,9 +396,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
+    /**
+     * Parse the bytes that were received from the serial device. If those bytes are recognized
+     * as a message that is part of BGAPI, prints the message name rather than the bytes
+     * If the message is a packet, parse it into a packet object
+     * */
     private void receive(byte[] data) {
         if (BGapi.isScanReportEvent(data)) {
             //original script recorded time, addr, rssi, channel, and data
+            //TODO: Non-UI logic - should not be in UI class
             if (pendingPacket != null) {
                 String msg = pendingPacket.toString();
                 if (truncate) {
@@ -393,22 +433,30 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
+    /**
+     * Print to the textview in a different color so that it stands out
+     * */
     void status(String str) {
         SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
         spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         receiveText.append(spn);
     }
 
-    /*
-     * SerialListener
-     */
+    //endregion
+
+    //region SerialListener
+
+
     @Override
     public void onSerialConnect() {
         status("connected");
         connected = Connected.True;
-        onSetupClicked(null);
-        //TODO delay via custom Handler/Looper
-        onStartClicked(null);
+        //send setup and start commands after delay via custom Handler
+        Handler handler = new Handler();
+        Runnable clickSetup = () -> onSetupClicked(null);
+        handler.postDelayed(clickSetup, 500);
+        Runnable clickStart = () -> onStartClicked(null);
+        handler.postDelayed(clickStart, 800);
     }
 
     @Override
