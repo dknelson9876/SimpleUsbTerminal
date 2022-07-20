@@ -87,6 +87,8 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
         FirebaseStorage storage = FirebaseStorage.getInstance();
         storageRef = storage.getReference();
 
+//        BGapi bGapi = new BGapi();
+
         if (savedInstanceState == null)
             getSupportFragmentManager().beginTransaction().add(R.id.fragment, new DevicesFragment(), "devices").commit();
         else

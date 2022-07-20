@@ -104,9 +104,9 @@ public class SerialService extends Service implements SerialListener {
         public void run() {
             try {
                 if (connected) {
-                    write(TextUtil.fromHexString(rotateCW ? BGapi.ROTATE_CW : BGapi.ROTATE_CCW));
+                    write(TextUtil.fromHexString(rotateCW ? BGapi.Companion.getROTATE_CW() : BGapi.Companion.getROTATE_CCW()));
                     SystemClock.sleep(motorRotateTime);
-                    write(TextUtil.fromHexString(BGapi.ROTATE_STOP));
+                    write(TextUtil.fromHexString(BGapi.Companion.getROTATE_STOP()));
 
                     double currentHeading = SensorHelper.getHeading();
                     //Did we actually move as a result of trying to move, or is it time to turn around?

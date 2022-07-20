@@ -1,432 +1,389 @@
-package de.kai_morich.simple_usb_terminal;
+package de.kai_morich.simple_usb_terminal
 
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
-import android.content.ComponentName;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.ServiceConnection;
-import android.graphics.Color;
-import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
-import android.hardware.usb.UsbManager;
-import android.os.Build;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.IBinder;
-import android.os.SystemClock;
-import android.text.InputType;
-import android.text.Spannable;
-import android.text.SpannableStringBuilder;
-import android.text.method.ScrollingMovementMethod;
-import android.text.style.ForegroundColorSpan;
-import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.CompoundButton;
-import android.widget.EditText;
-import android.widget.Spinner;
-import android.widget.TextView;
-import android.widget.Toast;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
-import androidx.appcompat.widget.SwitchCompat;
-import androidx.fragment.app.Fragment;
-
-import com.google.android.gms.location.Priority;
-import com.hoho.android.usbserial.driver.SerialTimeoutException;
-import com.hoho.android.usbserial.driver.UsbSerialDriver;
-import com.hoho.android.usbserial.driver.UsbSerialPort;
-import com.hoho.android.usbserial.driver.UsbSerialProber;
-
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import android.app.Activity
+import android.app.AlertDialog
+import android.app.PendingIntent
+import android.content.*
+import android.graphics.Color
+import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbManager
+import android.os.*
+import android.text.InputType
+import android.text.Spannable
+import android.text.SpannableStringBuilder
+import android.text.method.ScrollingMovementMethod
+import android.text.style.ForegroundColorSpan
+import android.util.Log
+import android.view.*
+import android.widget.*
+import androidx.annotation.RequiresApi
+import androidx.appcompat.widget.SwitchCompat
+import androidx.fragment.app.Fragment
+import com.google.android.gms.location.Priority
+import com.hoho.android.usbserial.driver.SerialTimeoutException
+import com.hoho.android.usbserial.driver.UsbSerialPort
+import com.hoho.android.usbserial.driver.UsbSerialProber
+import de.kai_morich.simple_usb_terminal.FirebaseService.Companion.instance
+import de.kai_morich.simple_usb_terminal.SerialService.SerialBinder
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * The UI portion of the app that is displayed while connected to a USB serial device
  * There's a lot of non-UI logic still in here that needs to be cleaned up and/or removed
  * entirely as we won't actually use it
- * */
+ */
 @RequiresApi(api = Build.VERSION_CODES.O)
-public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
-
-    private void onSetupClicked(View view1) {
-        send(BGapi.SCANNER_SET_MODE);
-        send(BGapi.SCANNER_SET_TIMING);
-        send(BGapi.CONNECTION_SET_PARAMETERS);
+class TerminalFragment : Fragment(), ServiceConnection, SerialListener {
+    private fun onSetupClicked() {
+        send(BGapi.SCANNER_SET_MODE)
+        send(BGapi.SCANNER_SET_TIMING)
+        send(BGapi.CONNECTION_SET_PARAMETERS)
     }
 
-    private void onStartClicked(View v) {
-        send(BGapi.SCANNER_START);
+    private fun onStartClicked() {
+        send(BGapi.SCANNER_START)
     }
 
-    private enum Connected {False, Pending, True}
-
-    private final BroadcastReceiver broadcastReceiver;
-    private int deviceId, portNum, baudRate;
-    private UsbSerialPort usbSerialPort;
-    private SerialService service;
-
-    private TextView receiveText;
-    private BlePacket pendingPacket;
-
-    private Connected connected = Connected.False;
-    private boolean initialStart = true;
-    private boolean truncate = true;
-    private String newline = TextUtil.newline_crlf;
-    private int rotatePeriod = 500;
-
-    public TerminalFragment() {
-        broadcastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (Constants.INTENT_ACTION_GRANT_USB.equals(intent.getAction())) {
-                    Boolean granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
-                    connect(granted);
-                }
-            }
-        };
+    private enum class Connected {
+        False, Pending, True
     }
+
+    private val broadcastReceiver: BroadcastReceiver
+    private var deviceId = 0
+    private var portNum = 0
+    private var baudRate = 0
+    private var usbSerialPort: UsbSerialPort? = null
+    private var service: SerialService? = null
+    private var receiveText: TextView? = null
+    private var pendingPacket: BlePacket? = null
+    private var connected = Connected.False
+    private var initialStart = true
+    private var truncate = true
+    private val newline = TextUtil.newline_crlf
+    private var rotatePeriod = 500
 
     //region Lifecycle
-
     /**
      * Inherited from Fragment. One of the first methods that the system will call
      * after the constructor. Retrieves the information about the device to connect to
      * that was sent over by the DevicesFragment
-     * */
-    @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setHasOptionsMenu(true);
-        setRetainInstance(true);
-        deviceId = getArguments().getInt("device");
-        portNum = getArguments().getInt("port");
-        baudRate = getArguments().getInt("baud");
+     */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setHasOptionsMenu(true)
+        retainInstance = true
+        deviceId = requireArguments().getInt("device")
+        portNum = requireArguments().getInt("port")
+        baudRate = requireArguments().getInt("baud")
     }
 
     /**
      * Inherited from Fragment. Called by the system when the app gets closed
-     * */
-    @Override
-    public void onDestroy() {
-        if (connected != Connected.False)
-            disconnect();
-        getActivity().stopService(new Intent(getActivity(), SerialService.class));
-        super.onDestroy();
+     */
+    override fun onDestroy() {
+        if (connected != Connected.False) disconnect()
+        requireActivity().stopService(Intent(activity, SerialService::class.java))
+        super.onDestroy()
     }
 
     /**
      * Inherited from Fragment. Called by the system
-     * */
-    @Override
-    public void onStart() {
-        super.onStart();
+     */
+    override fun onStart() {
+        super.onStart()
         if (service != null)
-            service.attach(this);
+            service!!.attach(this)
         else
-            getActivity().startService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
+            requireActivity().startService(Intent(activity, SerialService::class.java)) // prevents service destroy on unbind from recreated activity caused by orientation change
     }
 
     /**
      * Inherited from Fragment. Called by the system. Unsubscribes from messages from the serial device
      * as this Fragment is no longer being displayed
-     * */
-    @Override
-    public void onStop() {
-        if (service != null && !getActivity().isChangingConfigurations())
-            service.detach();
-        super.onStop();
+     */
+    override fun onStop() {
+        if (service != null && !requireActivity().isChangingConfigurations) service!!.detach()
+        super.onStop()
     }
 
-    @SuppressWarnings("deprecation")
-    // onAttach(context) was added with API 23. onAttach(activity) works for all API versions
-    @Override
-    public void onAttach(@NonNull Activity activity) {
-        super.onAttach(activity);
-        getActivity().bindService(new Intent(getActivity(), SerialService.class), this, Context.BIND_AUTO_CREATE);
+    override fun onAttach(activity: Activity) {
+        super.onAttach(activity)
+        requireActivity().bindService(
+            Intent(getActivity(), SerialService::class.java),
+            this,
+            Context.BIND_AUTO_CREATE
+        )
     }
 
-    @Override
-    public void onDetach() {
+    override fun onDetach() {
         try {
-            getActivity().unbindService(this);
-        } catch (Exception ignored) {
+            requireActivity().unbindService(this)
+        } catch (ignored: Exception) {
         }
-        super.onDetach();
+        super.onDetach()
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        getActivity().registerReceiver(broadcastReceiver, new IntentFilter(Constants.INTENT_ACTION_GRANT_USB));
+    override fun onResume() {
+        super.onResume()
+        requireActivity().registerReceiver(broadcastReceiver, IntentFilter(Constants.INTENT_ACTION_GRANT_USB))
         if (initialStart && service != null) {
-            initialStart = false;
-            getActivity().runOnUiThread(this::connect);
+            initialStart = false
+            requireActivity().runOnUiThread { connect() }
         }
     }
 
-    @Override
-    public void onPause() {
-        getActivity().unregisterReceiver(broadcastReceiver);
-        super.onPause();
+    override fun onPause() {
+        requireActivity().unregisterReceiver(broadcastReceiver)
+        super.onPause()
     }
 
-    @Override
-    public void onServiceConnected(ComponentName name, IBinder binder) {
-        service = ((SerialService.SerialBinder) binder).getService();
-        service.attach(this);
-        if (initialStart && isResumed()) {
-            initialStart = false;
-            getActivity().runOnUiThread(this::connect);
+    override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+        service = (binder as SerialBinder).service
+        service!!.attach(this)
+        if (initialStart && isResumed) {
+            initialStart = false
+            requireActivity().runOnUiThread { connect() }
         }
     }
 
-    @Override
-    public void onServiceDisconnected(ComponentName name) {
-        service = null;
+    override fun onServiceDisconnected(name: ComponentName) {
+        service = null
     }
 
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        val view = inflater.inflate(R.layout.fragment_terminal, container, false)
+        receiveText =
+            view.findViewById(R.id.receive_text) // TextView performance decreases with number of spans
+        receiveText!!.setTextColor(resources.getColor(R.color.colorRecieveText)) // set as default color to reduce number of spans
+        receiveText!!.movementMethod = ScrollingMovementMethod.getInstance()
+        val setupBtn = view.findViewById<View>(R.id.setup_btn)
+        setupBtn.setOnClickListener { onSetupClicked() }
+        val stopUploadBtn = view.findViewById<View>(R.id.stop_upload_btn)
+        stopUploadBtn.setOnClickListener {
+            Toast.makeText(context, "click!", Toast.LENGTH_SHORT).show()
+            val stopIntent = Intent(context, FirebaseService.ActionListener::class.java)
+            stopIntent.action = FirebaseService.KEY_NOTIFICATION_STOP_ACTION
+            stopIntent.putExtra(
+                FirebaseService.KEY_NOTIFICATION_ID,
+                ServiceNotification.notificationId
+            )
+            instance!!.sendBroadcast(stopIntent)
+        }
+        val stopMotorBtn = view.findViewById<SwitchCompat>(R.id.stop_motor_btn)
+        stopMotorBtn.setOnCheckedChangeListener { _, isChecked ->
+            val stopMotorIntent = Intent(context, SerialService.ActionListener::class.java)
+            stopMotorIntent.action = SerialService.KEY_STOP_MOTOR_ACTION
+            stopMotorIntent.putExtra(SerialService.KEY_MOTOR_SWITCH_STATE, isChecked)
+            SerialService.getInstance().sendBroadcast(stopMotorIntent)
+        }
+        val startBtn = view.findViewById<View>(R.id.start_btn)
+        startBtn.setOnClickListener { onStartClicked() }
 
+        val stopBtn = view.findViewById<View>(R.id.stop_btn)
+        stopBtn.setOnClickListener { send(BGapi.SCANNER_STOP) }
 
-    @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_terminal, container, false);
-        receiveText = view.findViewById(R.id.receive_text);                          // TextView performance decreases with number of spans
-        receiveText.setTextColor(getResources().getColor(R.color.colorRecieveText)); // set as default color to reduce number of spans
-        receiveText.setMovementMethod(ScrollingMovementMethod.getInstance());
-
-        View setupBtn = view.findViewById(R.id.setup_btn);
-        setupBtn.setOnClickListener(this::onSetupClicked);
-
-        View stopUploadBtn = view.findViewById(R.id.stop_upload_btn);
-        stopUploadBtn.setOnClickListener(btn -> {
-            Toast.makeText(getContext(), "click!", Toast.LENGTH_SHORT).show();
-            Intent stopIntent = new Intent(getContext(), FirebaseService.ActionListener.class);
-            stopIntent.setAction(FirebaseService.KEY_NOTIFICATION_STOP_ACTION);
-            stopIntent.putExtra(FirebaseService.KEY_NOTIFICATION_ID, ServiceNotification.notificationId);
-            FirebaseService.Companion.getInstance().sendBroadcast(stopIntent);
-        });
-
-        SwitchCompat stopMotorBtn = view.findViewById(R.id.stop_motor_btn);
-        stopMotorBtn.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                Intent stopMotorIntent = new Intent(getContext(), SerialService.ActionListener.class);
-                stopMotorIntent.setAction(SerialService.KEY_STOP_MOTOR_ACTION);
-                stopMotorIntent.putExtra(SerialService.KEY_MOTOR_SWITCH_STATE, isChecked);
-                SerialService.getInstance().sendBroadcast(stopMotorIntent);
-            }
-        });
-
-        View startBtn = view.findViewById(R.id.start_btn);
-        startBtn.setOnClickListener(this::onStartClicked);
-
-        View stopBtn = view.findViewById(R.id.stop_btn);
-        stopBtn.setOnClickListener(v -> send(BGapi.SCANNER_STOP));
-
-        Spinner gps_priority = view.findViewById(R.id.gps_priority_spinner);
-        String[] gps_options = {"Power Saving", "Balanced", "High Accuracy"};
-        ArrayAdapter<CharSequence> adapter = new ArrayAdapter<CharSequence>(getContext(), android.R.layout.simple_spinner_item, gps_options);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        gps_priority.setAdapter(adapter);
-        gps_priority.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                Activity activity = getActivity();
-                if(activity instanceof MainActivity) {
-                    switch(position){
-                        case 0:
-                            ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_LOW_POWER);
-                            break;
-                        case 1:
-                            ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY);
-                            break;
-                        case 2:
-                            ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_HIGH_ACCURACY);
-                            break;
+        val gpsPriority = view.findViewById<Spinner>(R.id.gps_priority_spinner)
+        val gpsOptions = arrayOf("Power Saving", "Balanced", "High Accuracy")
+        val adapter = ArrayAdapter<CharSequence>(requireContext(), android.R.layout.simple_spinner_item, gpsOptions)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        gpsPriority.adapter = adapter
+        gpsPriority.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View,
+                position: Int,
+                id: Long
+            ) {
+                val activity: Activity? = activity
+                if (activity is MainActivity) {
+                    when (position) {
+                        0 -> activity.updateLocationPriority(Priority.PRIORITY_LOW_POWER)
+                        1 -> activity.updateLocationPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
+                        2 -> activity.updateLocationPriority(Priority.PRIORITY_HIGH_ACCURACY)
                     }
                 }
             }
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
+            override fun onNothingSelected(parent: AdapterView<*>?) {
                 //do nothing
             }
-        });
+        }
 
         //TODO switch to get the filename directly from FirebaseService
-        receiveText.append("Writing to " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss")) + "_log.txt" + "\n");
+        receiveText!!.append("Writing to ${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))}_log.txt")
 
-        return view;
+        return view
     }
 
     /**
      * Inherited from Fragment. The Options menu is the 3 dots in the top right corner
-     * */
-    @Override
-    public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
-        inflater.inflate(R.menu.menu_terminal, menu);
-        menu.findItem(R.id.truncate).setChecked(truncate);
+     */
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.menu_terminal, menu)
+        menu.findItem(R.id.truncate).isChecked = truncate
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.clear) {
-            receiveText.setText("");
-            return true;
-        } else if (id == R.id.manualUpload) {
-            FirebaseService.Companion.getInstance().uploadLog();
-            return true;
-        } else if (id == R.id.truncate) {
-            truncate = !truncate;
-            item.setChecked(truncate);
-            return true;
-        } else if (id == R.id.manualCW) {
-            send(BGapi.ROTATE_CW);
-            SystemClock.sleep(500);
-            send(BGapi.ROTATE_STOP);
-            return true;
-        } else if (id == R.id.manualCCW) {
-            send(BGapi.ROTATE_CCW);
-            SystemClock.sleep(500);
-            send(BGapi.ROTATE_STOP);
-            return true;
-        } else if (id == R.id.editRotate) {
-            //TODO actually change the period in SerialService
-            AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-            builder.setTitle("New Rotation Period UNUSED");
-
-            final EditText input = new EditText(getContext());
-            input.setInputType(InputType.TYPE_CLASS_TEXT);
-            builder.setView(input);
-
-            builder.setPositiveButton("OK", (dialog, which) -> {
-                rotatePeriod = Integer.parseInt(input.getText().toString());
-                Toast.makeText(getContext(), "Set rotation period to " + rotatePeriod, Toast.LENGTH_SHORT).show();
-            });
-            builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
-            builder.show();
-
-            return true;
-        } else {
-            return super.onOptionsItemSelected(item);
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.clear -> {
+                receiveText!!.text = ""
+                true
+            }
+            R.id.manualUpload -> {
+                instance!!.uploadLog()
+                true
+            }
+            R.id.truncate -> {
+                truncate = !truncate
+                item.isChecked = truncate
+                true
+            }
+            R.id.manualCW -> {
+                send(BGapi.ROTATE_CW)
+                SystemClock.sleep(500)
+                send(BGapi.ROTATE_STOP)
+                true
+            }
+            R.id.manualCCW -> {
+                send(BGapi.ROTATE_CCW)
+                SystemClock.sleep(500)
+                send(BGapi.ROTATE_STOP)
+                true
+            }
+            R.id.editRotate -> {
+                //TODO actually change the period in SerialService
+                val builder = AlertDialog.Builder(context)
+                builder.setTitle("New Rotation Period UNUSED")
+                val input = EditText(context)
+                input.inputType = InputType.TYPE_CLASS_TEXT
+                builder.setView(input)
+                builder.setPositiveButton("OK") { _: DialogInterface?, _: Int ->
+                    rotatePeriod = input.text.toString().toInt()
+                    Toast.makeText(context, "Set rotation period to $rotatePeriod", Toast.LENGTH_SHORT).show()
+                }
+                builder.setNegativeButton("Cancel") { dialog: DialogInterface, _: Int -> dialog.cancel() }
+                builder.show()
+                true
+            }
+            else -> {
+                super.onOptionsItemSelected(item)
+            }
         }
     }
+
 
     // endregion Lifecycle
 
     //region Serial
-
-
-    private void connect() {
-        connect(null);
-    }
 
     /**
      * Do all the listing and check required to connect to the USB device using the details
      * that were passed when this Fragment was started
      * But some of this seems like duplicate logic from DevicesFragment, so this might be able
      * to be reduced
-     * */
-    private void connect(Boolean permissionGranted) {
-        UsbDevice device = null;
-        UsbManager usbManager = (UsbManager) getActivity().getSystemService(Context.USB_SERVICE);
-        for (UsbDevice v : usbManager.getDeviceList().values())
-            if (v.getDeviceId() == deviceId)
-                device = v;
+     */
+    private fun connect(permissionGranted: Boolean? = null) {
+        var device: UsbDevice? = null
+        val usbManager = requireActivity().getSystemService(Context.USB_SERVICE) as UsbManager
+        for (v in usbManager.deviceList.values) if (v.deviceId == deviceId) device = v
         if (device == null) {
-            status("connection failed: device not found");
-            return;
+            status("connection failed: device not found")
+            return
         }
-        UsbSerialDriver driver = UsbSerialProber.getDefaultProber().probeDevice(device);
+        var driver = UsbSerialProber.getDefaultProber().probeDevice(device)
         if (driver == null) {
-            driver = CustomProber.getCustomProber().probeDevice(device);
+            driver = CustomProber.getCustomProber().probeDevice(device)
         }
         if (driver == null) {
-            status("connection failed: no driver for device");
-            return;
+            status("connection failed: no driver for device")
+            return
         }
-        if (driver.getPorts().size() < portNum) {
-            status("connection failed: not enough ports at device");
-            return;
+        if (driver.ports.size < portNum) {
+            status("connection failed: not enough ports at device")
+            return
         }
         //TODO: Non-UI logic - should not be in a UI class
-        usbSerialPort = driver.getPorts().get(portNum);
-        UsbDeviceConnection usbConnection = usbManager.openDevice(driver.getDevice());
-        if (usbConnection == null && permissionGranted == null && !usbManager.hasPermission(driver.getDevice())) {
-            PendingIntent usbPermissionIntent = PendingIntent.getBroadcast(getActivity(), 0, new Intent(Constants.INTENT_ACTION_GRANT_USB), PendingIntent.FLAG_IMMUTABLE);
-            usbManager.requestPermission(driver.getDevice(), usbPermissionIntent);
-            return;
+        usbSerialPort = driver.ports[portNum]
+        val usbConnection = usbManager.openDevice(driver.device)
+        if (usbConnection == null && permissionGranted == null && !usbManager.hasPermission(driver.device)) {
+            val usbPermissionIntent = PendingIntent.getBroadcast(
+                activity,
+                0,
+                Intent(Constants.INTENT_ACTION_GRANT_USB),
+                PendingIntent.FLAG_IMMUTABLE
+            )
+            usbManager.requestPermission(driver.device, usbPermissionIntent)
+            return
         }
         if (usbConnection == null) {
-            if (!usbManager.hasPermission(driver.getDevice()))
-                status("connection failed: permission denied");
-            else
-                status("connection failed: open failed");
-            return;
+            if (!usbManager.hasPermission(driver.device)) status("connection failed: permission denied") else status(
+                "connection failed: open failed"
+            )
+            return
         }
-
-        connected = Connected.Pending;
+        connected = Connected.Pending
         try {
-            usbSerialPort.open(usbConnection);
-            usbSerialPort.setParameters(baudRate, UsbSerialPort.DATABITS_8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
-            SerialSocket socket = new SerialSocket(getActivity().getApplicationContext(), usbConnection, usbSerialPort);
-            service.connect(socket);
+            usbSerialPort!!.open(usbConnection)
+            usbSerialPort!!.setParameters(
+                baudRate,
+                UsbSerialPort.DATABITS_8,
+                UsbSerialPort.STOPBITS_1,
+                UsbSerialPort.PARITY_NONE
+            )
+            val socket = SerialSocket(requireActivity().applicationContext, usbConnection, usbSerialPort)
+            service!!.connect(socket)
             // usb connect is not asynchronous. connect-success and connect-error are returned immediately from socket.connect
             // for consistency to bluetooth/bluetooth-LE app use same SerialListener and SerialService classes
-            onSerialConnect();
-        } catch (Exception e) {
-            onSerialConnectError(e);
+            onSerialConnect()
+        } catch (e: Exception) {
+            onSerialConnectError(e)
         }
     }
 
-    private void disconnect() {
-        connected = Connected.False;
-        service.disconnect();
-        usbSerialPort = null;
+    private fun disconnect() {
+        connected = Connected.False
+        service!!.disconnect()
+        usbSerialPort = null
     }
 
     /**
      * Send a String to the currently connected serial device. Returns immediately if no
      * device is connected. Additionally appends the sent information to the text on screen
-     * */
-    private void send(String str) {
+     */
+    private fun send(str: String?) {
         if (connected != Connected.True) {
-            Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
-            return;
+            Toast.makeText(activity, "not connected", Toast.LENGTH_SHORT).show()
+            return
         }
         try {
             //TODO: Non-UI logic - should not be in UI class
-            String msg;
-            byte[] data;
-            StringBuilder sb = new StringBuilder();
-            TextUtil.toHexString(sb, TextUtil.fromHexString(str));
-            TextUtil.toHexString(sb, newline.getBytes());
-            msg = sb.toString();
-            data = TextUtil.fromHexString(msg);
-            if (BGapi.isCommand(str)) {
-                msg = BGapi.getCommandName(str);
+            var msg: String
+            val sb = StringBuilder()
+            TextUtil.toHexString(sb, TextUtil.fromHexString(str))
+            TextUtil.toHexString(sb, newline.toByteArray())
+            msg = sb.toString()
+            val data: ByteArray = TextUtil.fromHexString(msg)
+            if (BGapi.isCommand(str!!)) {
+                msg = BGapi.getCommandName(str)!!
             }
-            SpannableStringBuilder spn = new SpannableStringBuilder(msg + '\n');
-            spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            receiveText.append(spn);
-            service.write(data);
-        } catch (SerialTimeoutException e) {
-            status("write timeout: " + e.getMessage());
-        } catch (Exception e) {
-            onSerialIoError(e);
+            val spn = SpannableStringBuilder(msg)
+            spn.setSpan(
+                ForegroundColorSpan(resources.getColor(R.color.colorSendText)),
+                0,
+                spn.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            receiveText!!.append(spn)
+            service!!.write(data)
+        } catch (e: SerialTimeoutException) {
+            status("write timeout: " + e.message)
+        } catch (e: Exception) {
+            onSerialIoError(e)
         }
     }
 
@@ -434,88 +391,100 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
      * Parse the bytes that were received from the serial device. If those bytes are recognized
      * as a message that is part of BGAPI, prints the message name rather than the bytes
      * If the message is a packet, parse it into a packet object
-     * */
-    private void receive(byte[] data) {
+     */
+    private fun receive(data: ByteArray) {
         if (BGapi.isScanReportEvent(data)) {
             //original script recorded time, addr, rssi, channel, and data
             //TODO: Non-UI logic - should not be in UI class
             if (pendingPacket != null) {
-                String msg = pendingPacket.toString();
+                var msg = pendingPacket.toString()
                 if (truncate) {
-                    int length = msg.length();
+                    var length = msg.length
                     if (length > msg.lastIndexOf('\n') + 40) {
-                        length = msg.lastIndexOf('\n') + 40;
+                        length = msg.lastIndexOf('\n') + 40
                     }
-                    msg = msg.substring(0, length) + "…";
+                    msg = msg.substring(0, length) + "..."
                 }
-                SpannableStringBuilder spn = new SpannableStringBuilder(msg + "\n\n");
-                spn.setSpan(new ForegroundColorSpan(Color.MAGENTA), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-                receiveText.append(spn);
+                val spn = SpannableStringBuilder(msg)
+                spn.setSpan(
+                    ForegroundColorSpan(Color.MAGENTA),
+                    0,
+                    spn.length,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                receiveText!!.append(spn)
             }
-            if (data.length <= 21)
-                return;
-
-            pendingPacket = BlePacket.parsePacket(data);
+            if (data.size <= 21) return
+            pendingPacket = BlePacket.parsePacket(data)
         } else if (BGapi.isKnownResponse(data)) {
-            String rsp = BGapi.getResponseName(data);
-            if(rsp != null && !rsp.contains("rotate"))
-                receiveText.append(BGapi.getResponseName(data) + '\n');
+            val rsp = BGapi.getResponseName(data)
+            if (rsp != null && !rsp.contains("rotate"))
+                receiveText!!.append(BGapi.getResponseName(data))
         } else {
             //until the data has a terminator, assume packets that aren't a known header are data that was truncated
-            if (pendingPacket != null)
-                pendingPacket.appendData(data);
+            if (pendingPacket != null) pendingPacket!!.appendData(data)
         }
 
         //If the text in receiveText is getting too large to be reasonable, cut it off
-        if(receiveText.getText().length() > 8000){
-            CharSequence text = receiveText.getText();
-            int length = text.length();
-            receiveText.setText(text.subSequence(length-2000, length));
+        if (receiveText!!.text.length > 8000) {
+            val text = receiveText!!.text
+            val length = text.length
+            receiveText!!.text = text.subSequence(length - 2000, length)
         }
-
     }
 
     /**
      * Print to the textview in a different color so that it stands out
-     * */
-    void status(String str) {
-        SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
-        spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        receiveText.append(spn);
+     */
+    fun status(str: String) {
+        val spn = SpannableStringBuilder(str)
+        spn.setSpan(
+            ForegroundColorSpan(resources.getColor(R.color.colorStatusText)),
+            0,
+            spn.length,
+            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        receiveText!!.append(spn)
     }
 
     //endregion
 
     //region SerialListener
 
-
-    @Override
-    public void onSerialConnect() {
-        status("connected");
-        connected = Connected.True;
+    override fun onSerialConnect() {
+        status("connected")
+        connected = Connected.True
         //send setup and start commands after delay via custom Handler
-        Handler handler = new Handler();
-        Runnable clickSetup = () -> onSetupClicked(null);
-        handler.postDelayed(clickSetup, 2500);
-        Runnable clickStart = () -> onStartClicked(null);
-        handler.postDelayed(clickStart, 2700);
+        val handler = Handler()
+        val clickSetup = Runnable { onSetupClicked() }
+        handler.postDelayed(clickSetup, 2500)
+        val clickStart = Runnable { onStartClicked() }
+        handler.postDelayed(clickStart, 2700)
     }
 
-    @Override
-    public void onSerialConnectError(Exception e) {
-        status("connection failed: " + e.getMessage());
-        disconnect();
+    override fun onSerialConnectError(e: Exception) {
+        status("connection failed: " + e.message)
+        disconnect()
     }
 
-    @Override
-    public void onSerialRead(byte[] data) {
-        receive(data);
+    override fun onSerialRead(data: ByteArray) {
+        receive(data)
     }
 
-    @Override
-    public void onSerialIoError(Exception e) {
-        status("connection lost: " + e.getMessage());
-        disconnect();
+    override fun onSerialIoError(e: Exception) {
+        status("connection lost: " + e.message)
+        status(Log.getStackTraceString(e))
+        disconnect()
     }
 
+    init {
+        broadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (Constants.INTENT_ACTION_GRANT_USB == intent.action) {
+                    val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
+                    connect(granted)
+                }
+            }
+        }
+    }
 }
