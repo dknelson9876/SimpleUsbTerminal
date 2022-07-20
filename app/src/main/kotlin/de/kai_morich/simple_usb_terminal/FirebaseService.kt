@@ -46,6 +46,13 @@ class FirebaseService : Service() {
 
         const val KEY_NOTIFICATION_ID = "notificationID"
         const val KEY_NOTIFICATION_STOP_ACTION = "de.kai_morich.simple_usb_terminal.NOTIFICATION_STOP"
+
+        fun getServiceInstance(): FirebaseService {
+            if (instance == null){
+                instance = FirebaseService()
+            }
+            return instance!!
+        }
     }
 
     override fun onCreate() {

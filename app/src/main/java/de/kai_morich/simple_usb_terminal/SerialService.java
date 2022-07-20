@@ -22,24 +22,23 @@ import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
 
 /**
  * Service that serves as our end of communication with the Gecko device. Because I forked this
  * from a separate demo app to get a jump start, this class probably can be narrowed down.
- *
+ * <p>
  * The queues serve as a buffer for the messages received during the times where a socket
- *  has been connected to a device, but no UI elements have subscribed to receive those
- *  messages yet. As a workaround for now, received packets are parsed here and sent to
- *  FirebaseService to one of its methods
- *
+ * has been connected to a device, but no UI elements have subscribed to receive those
+ * messages yet. As a workaround for now, received packets are parsed here and sent to
+ * FirebaseService to one of its methods
+ * <p>
  * This means there is some duplicate logic going on in FirebaseService and TerminalFragment,
- *  and most likely remains the messiest part of this app. One way to fix this might be to
- *  adapt this to have a list of SerialListeners that can subscribe via attach()
- *
- *
+ * and most likely remains the messiest part of this app. One way to fix this might be to
+ * adapt this to have a list of SerialListeners that can subscribe via attach()
+ * <p>
+ * <p>
  * use listener chain: SerialSocket -> SerialService -> UI fragment
  */
 @RequiresApi(api = Build.VERSION_CODES.O)
@@ -74,7 +73,7 @@ public class SerialService extends Service implements SerialListener {
     // The representation of the actual connection
     private SerialSocket socket;
     // The object that wants to be forwarded the events from this service
-    private SerialListener listener;
+    private SerialListener uiFacingListener;
     private boolean connected;
 
     // rotation variables
@@ -149,7 +148,7 @@ public class SerialService extends Service implements SerialListener {
      * Called by the system when another part of this app calls startService()
      * Shows the notification that is required by the system to signal that we will be
      * using constant access to system resources and sensors
-     * */
+     */
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
@@ -159,7 +158,7 @@ public class SerialService extends Service implements SerialListener {
 
     /**
      * Create the Handler that will regularly call the code in rotateRunnable
-     * */
+     */
     private void startMotorHandler() {
         Looper looper = Looper.myLooper();
         if (looper != null) {
@@ -170,7 +169,7 @@ public class SerialService extends Service implements SerialListener {
 
     /**
      * Called by the system hopefully never since the app should never die
-     * */
+     */
     @Override
     public void onDestroy() {
         cancelNotification();
@@ -182,7 +181,7 @@ public class SerialService extends Service implements SerialListener {
      * Inherited from Service
      * Called when a Fragment or Activity tries to bind to this service
      * in order to communicate with it
-     * */
+     */
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
@@ -197,7 +196,7 @@ public class SerialService extends Service implements SerialListener {
      * Called by TerminalFragment after it has created a SerialSocket and given it the details
      * necessary to open a connection to a USB serial device
      * Connects to the device
-     * */
+     */
     public void connect(SerialSocket socket) throws IOException {
         socket.connect(this);
         this.socket = socket;
@@ -206,7 +205,7 @@ public class SerialService extends Service implements SerialListener {
 
     /**
      * Disconnect from the USB serial device and remove the socket
-     * */
+     */
     public void disconnect() {
         connected = false; // ignore data,errors while disconnecting
         cancelNotification();
@@ -219,7 +218,7 @@ public class SerialService extends Service implements SerialListener {
     /**
      * Write data to the USB serial device through the socket
      * Throws IOException if not currently connected to a device
-     * */
+     */
     public void write(byte[] data) throws IOException {
         if (!connected)
             throw new IOException("not connected");
@@ -229,9 +228,9 @@ public class SerialService extends Service implements SerialListener {
     /**
      * Subscribe to any serial events that occur from the connected device
      * May immediately send events that were queued since last connection
-     *
+     * <p>
      * This method is expected to be used by UI elements i.e. TerminalFragment
-     * */
+     */
     public void attach(SerialListener listener) {
         //Not entirely sure why this is necessary
         if (Looper.getMainLooper().getThread() != Thread.currentThread())
@@ -240,8 +239,9 @@ public class SerialService extends Service implements SerialListener {
         // use synchronized() to prevent new items in queue2
         // new items will not be added to queue1 because mainLooper.post and attach() run in main thread
         synchronized (this) {
-            this.listener = listener;
+            this.uiFacingListener = listener;
         }
+        // queue1 will contain all events that posted in the time between disconnecting and detaching
         for(QueueItem item : queue1) {
             switch(item.type) {
                 case Connect:       listener.onSerialConnect      (); break;
@@ -250,6 +250,7 @@ public class SerialService extends Service implements SerialListener {
                 case IoError:       listener.onSerialIoError      (item.e); break;
             }
         }
+        // queue2 will contain all events that posted after detaching
         for(QueueItem item : queue2) {
             switch(item.type) {
                 case Connect:       listener.onSerialConnect      (); break;
@@ -268,12 +269,13 @@ public class SerialService extends Service implements SerialListener {
         // items already in event queue (posted before detach() to mainLooper) will end up in queue1
         // items occurring later, will be moved directly to queue2
         // detach() and mainLooper.post run in the main thread, so all items are caught
-        listener = null;
+        uiFacingListener = null;
     }
 
     /**
-     * Creates a configures the constant notification required by the system
-     * Then shows this notification and promotes this service to a ForegroundService*/
+     * Creates and configures the constant notification required by the system
+     * Then shows this notification and promotes this service to a ForegroundService
+     */
     private void createNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel nc = new NotificationChannel(Constants.NOTIFICATION_CHANNEL, "Background service", NotificationManager.IMPORTANCE_LOW);
@@ -281,14 +283,27 @@ public class SerialService extends Service implements SerialListener {
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             nm.createNotificationChannel(nc);
         }
+
         Intent disconnectIntent = new Intent()
                 .setAction(Constants.INTENT_ACTION_DISCONNECT);
+        PendingIntent disconnectPendingIntent = PendingIntent.getBroadcast(
+                this,
+                1,
+                disconnectIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
         Intent restartIntent = new Intent()
                 .setClassName(this, Constants.INTENT_CLASS_MAIN_ACTIVITY)
                 .setAction(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LAUNCHER);
-        PendingIntent disconnectPendingIntent = PendingIntent.getBroadcast(this, 1, disconnectIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        PendingIntent restartPendingIntent = PendingIntent.getActivity(this, 1, restartIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent restartPendingIntent = PendingIntent.getActivity(
+                this,
+                1,
+                restartIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, Constants.NOTIFICATION_CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setColor(getResources().getColor(R.color.colorPrimary))
@@ -312,20 +327,20 @@ public class SerialService extends Service implements SerialListener {
     //region SerialListener
 
     /**
-     *  Each of these methods either forwards the event on to the listener that subscribed via
-     *  attach(), or queues it to be forwarded when a listener becomes available again
-     *
-     *  With the exception of onSerialRead, which also parses the data and sends packets
-     *  to FirebaseService
+     * Each of these methods either forwards the event on to the listener that subscribed via
+     * attach(), or queues it to be forwarded when a listener becomes available again
+     * <p>
+     * With the exception of onSerialRead, which also parses the data and sends packets
+     * to FirebaseService
      */
 
     public void onSerialConnect() {
         if (connected) {
             synchronized (this) {
-                if (listener != null) {
+                if (uiFacingListener != null) {
                     mainLooper.post(() -> {
-                        if (listener != null) {
-                            listener.onSerialConnect();
+                        if (uiFacingListener != null) {
+                            uiFacingListener.onSerialConnect();
                         } else {
                             queue1.add(new QueueItem(QueueType.Connect, null, null));
                         }
@@ -342,10 +357,10 @@ public class SerialService extends Service implements SerialListener {
             FirebaseService.Companion.getInstance().appendFile(e.getMessage() + "\n");
             FirebaseService.Companion.getInstance().appendFile(Log.getStackTraceString(e) + "\n");
             synchronized (this) {
-                if (listener != null) {
+                if (uiFacingListener != null) {
                     mainLooper.post(() -> {
-                        if (listener != null) {
-                            listener.onSerialConnectError(e);
+                        if (uiFacingListener != null) {
+                            uiFacingListener.onSerialConnectError(e);
                         } else {
                             queue1.add(new QueueItem(QueueType.ConnectError, null, e));
                             cancelNotification();
@@ -371,12 +386,12 @@ public class SerialService extends Service implements SerialListener {
                 // if a packet is pending, it is complete and save it before parsing the most
                 // recent data
                 if (pendingPacket != null) {
-                    FirebaseService.Companion.getInstance().appendFile(pendingPacket.toCSV());
+                    FirebaseService.Companion.getServiceInstance().appendFile(pendingPacket.toCSV());
                 }
 
                 BlePacket temp = BlePacket.parsePacket(data);
                 //did the new data parse successfully?
-                if(temp != null) {
+                if (temp != null) {
                     //Yes - save the packet
                     pendingPacket = temp;
                 } else {
@@ -388,13 +403,13 @@ public class SerialService extends Service implements SerialListener {
                 //If the data isn't any kind of thing we can recognize, assume it's incomplete
 
                 //If there's already partial data waiting
-                if(pendingBytes != null){
+                if (pendingBytes != null) {
                     //add this data to the end of it
                     pendingBytes = appendByteArray(pendingBytes, data);
 
                     //and try to parse it again
                     BlePacket temp = BlePacket.parsePacket(pendingBytes);
-                    if(temp != null){
+                    if (temp != null) {
                         pendingPacket = temp;
                         pendingBytes = null;
                     }
@@ -407,10 +422,10 @@ public class SerialService extends Service implements SerialListener {
 
             //original content of method
             synchronized (this) {
-                if (listener != null) {
+                if (uiFacingListener != null) {
                     mainLooper.post(() -> {
-                        if (listener != null) {
-                            listener.onSerialRead(data);
+                        if (uiFacingListener != null) {
+                            uiFacingListener.onSerialRead(data);
                         } else {
                             queue1.add(new QueueItem(QueueType.Read, data, null));
                         }
@@ -434,13 +449,13 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialIoError(Exception e) {
         if (connected) {
-            FirebaseService.Companion.getInstance().appendFile(e.getMessage() + "\n");
-            FirebaseService.Companion.getInstance().appendFile(Log.getStackTraceString(e) + "\n");
+            FirebaseService.Companion.getServiceInstance().appendFile(e.getMessage() + "\n");
+            FirebaseService.Companion.getServiceInstance().appendFile(Log.getStackTraceString(e) + "\n");
             synchronized (this) {
-                if (listener != null) {
+                if (uiFacingListener != null) {
                     mainLooper.post(() -> {
-                        if (listener != null) {
-                            listener.onSerialIoError(e);
+                        if (uiFacingListener != null) {
+                            uiFacingListener.onSerialIoError(e);
                         } else {
                             queue1.add(new QueueItem(QueueType.IoError, null, e));
                             cancelNotification();
@@ -462,14 +477,14 @@ public class SerialService extends Service implements SerialListener {
      * TODO: find a way to interrupt an already scheduled handler so that the
      * motor stops immediately on the switch being pushed
      * (It currently only stops after the next time it rotates)
-     * */
+     */
     public static class ActionListener extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if(intent != null && intent.getAction() != null){
-                if(intent.getAction().equals(KEY_STOP_MOTOR_ACTION)){
+            if (intent != null && intent.getAction() != null) {
+                if (intent.getAction().equals(KEY_STOP_MOTOR_ACTION)) {
                     isMotorRunning = intent.getBooleanExtra(KEY_MOTOR_SWITCH_STATE, false);
-                    if(isMotorRunning){
+                    if (isMotorRunning) {
                         SerialService.getInstance().startMotorHandler();
                     }
                 }
