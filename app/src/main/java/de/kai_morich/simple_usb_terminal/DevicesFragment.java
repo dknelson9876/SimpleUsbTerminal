@@ -149,6 +149,7 @@ public class DevicesFragment extends ListFragment {
             if (device.getVendorId() == 4966 && device.getProductId() == 261) {
                 //this is a SiLabs Gecko
 //                Toast.makeText(getActivity(), "Attempting to click Gecko", Toast.LENGTH_SHORT).show();
+                //TODO: Non-UI logic - should not be in a UI class
                 onListItemClick(null, null, listItems.size(), 0);
             }
         }
