@@ -29,8 +29,11 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -40,6 +43,7 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.fragment.app.Fragment;
 
+import com.google.android.gms.location.Priority;
 import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
@@ -231,8 +235,38 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         View stopBtn = view.findViewById(R.id.stop_btn);
         stopBtn.setOnClickListener(v -> send(BGapi.SCANNER_STOP));
 
+        Spinner gps_priority = view.findViewById(R.id.gps_priority_spinner);
+        String[] gps_options = {"High Accuracy", "Balanced", "Power Saving"};
+        ArrayAdapter<CharSequence> adapter = new ArrayAdapter<CharSequence>(getContext(), android.R.layout.simple_spinner_item, gps_options);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        gps_priority.setAdapter(adapter);
+        gps_priority.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                Activity activity = getActivity();
+                if(activity instanceof MainActivity) {
+                    switch(position){
+                        case 0:
+                            ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_HIGH_ACCURACY);
+                            break;
+                        case 1:
+                            ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY);
+                            break;
+                        case 2:
+                            ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_LOW_POWER);
+                            break;
+                    }
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                //do nothing
+            }
+        });
+
         //TODO switch to get the filename directly from FirebaseService
-        receiveText.append("Writing to " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss")) + "_log.txt" + "\n");
+        receiveText.append("Writing to " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss")) + "_log.txt" + "\n");
 
         return view;
     }
@@ -431,6 +465,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             if (pendingPacket != null)
                 pendingPacket.appendData(data);
         }
+
+        //If the text in receiveText is getting too large to be reasonable, cut it off
+        if(receiveText.getText().length() > 8000){
+            CharSequence text = receiveText.getText();
+            int length = text.length();
+            receiveText.setText(text.subSequence(length-2000, length));
+        }
+
     }
 
     /**

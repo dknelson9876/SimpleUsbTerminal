@@ -26,13 +26,15 @@ class LocationHelper constructor(private val context: Context) {
     // Configure parameters according to our location needs
     private val locationRequest: LocationRequest = LocationRequest.create().apply {
         // Sets the desired interval for active location updates. This is inexact
-        interval = TimeUnit.SECONDS.toMillis(60)
+        interval = TimeUnit.MINUTES.toMillis(5)
 
         // sets the fastest rate for active location updates. Will never be faster
-        fastestInterval = TimeUnit.SECONDS.toMillis(30)
+        fastestInterval = TimeUnit.MINUTES.toMillis(1)
 
         //sets the max time between when location is reported
-        maxWaitTime = TimeUnit.SECONDS.toMillis(5)
+        maxWaitTime = TimeUnit.MINUTES.toMillis(1)
+
+        //TODO: test how different the levels of power/accuracy change
 
         // set our preference concerning power/accuracy
         // 4 Options:
@@ -42,11 +44,17 @@ class LocationHelper constructor(private val context: Context) {
         // | PRIORITY_LOW_POWER               | Favors low power usage at the expense of location accuracy                   |
         // | PRIORITY_PASSIVE                 | Ensure no extra power usage, only receives location as other clients request |
         // +----------------------------------+------------------------------------------------------------------------------+
-        priority = Priority.PRIORITY_HIGH_ACCURACY
+        priority = Priority.PRIORITY_BALANCED_POWER_ACCURACY
 
         // other parameters of LocationRequest that may be worth messing with:
         // smallestDisplacement, expirationTime
     }
+
+    fun changePriority(priority: Int) {
+        locationRequest.priority = priority
+        startLocationUpdates()
+    }
+
 
     // configure where we want the system to send the result of our request
     private val locationUpdatePendingIntent: PendingIntent by lazy {
@@ -55,10 +63,16 @@ class LocationHelper constructor(private val context: Context) {
         PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
     }
 
-    @SuppressLint("MissingPermission")
-    fun startLocationUpdates(){
+    @SuppressLint("MissingPermission") // Location checks are always performed before this method is called
+    fun startLocationUpdates() {
         Log.d(TAG, "startLocationUpdates()")
         _receivingLocationUpdates.value = true
+
+        Toast.makeText(
+            context,
+            "Starting GPS, Priority: " + locationRequest.priority,
+            Toast.LENGTH_SHORT
+        ).show()
 
         fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationUpdatePendingIntent).apply {
             addOnSuccessListener { Toast.makeText(context, "GPS success", Toast.LENGTH_SHORT).show() }

@@ -43,6 +43,7 @@ import java.util.TimerTask;
 public class MainActivity extends AppCompatActivity implements FragmentManager.OnBackStackChangedListener {
 
     private StorageReference storageRef;
+    private LocationHelper locationHelper;
 
     ActivityResultLauncher<String[]> locationPermissionRequest =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
@@ -80,7 +81,7 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
                 Manifest.permission.ACCESS_COARSE_LOCATION
         });
 
-       LocationHelper locationHelper = new LocationHelper(this);
+       locationHelper = new LocationHelper(this);
        locationHelper.startLocationUpdates();
 
         FirebaseStorage storage = FirebaseStorage.getInstance();
@@ -191,6 +192,10 @@ public class MainActivity extends AppCompatActivity implements FragmentManager.O
 //        stopService(new Intent(this, FirebaseService.class));
 //        stopService(new Intent(this, SerialService.class));
         super.onDestroy();
+    }
+
+    public void updateLocationPriority(int priority){
+        locationHelper.changePriority(priority);
     }
 
 
