@@ -56,7 +56,7 @@ class FirebaseService : Service() {
         var path = applicationContext.getExternalFilesDir(null)
         file = File(
             path,
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
                     + "_log.txt"
         )
         fw = FileWriter(file)
@@ -190,7 +190,7 @@ class FirebaseService : Service() {
             "test/"
                     + Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)
                     + "/"
-                    + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+                    + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
                     + "_"
                     + origin
                     + ".txt"
@@ -230,7 +230,7 @@ class FirebaseService : Service() {
             val path = applicationContext.getExternalFilesDir(null)
             file = File(
                 path,
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
                         + "_log.txt"
             )
             fw = FileWriter(file)

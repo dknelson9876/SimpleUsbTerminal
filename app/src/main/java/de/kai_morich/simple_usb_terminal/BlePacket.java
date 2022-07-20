@@ -38,7 +38,7 @@ public class BlePacket {
         time = LocalDateTime.now();
         heading = SensorHelper.getHeading();
 
-        Location location = MainActivity.getLocation();
+        Location location = LocationBroadcastReceiver.Companion.getCurrentLocation();
         if (location != null) {
             latt = location.getLatitude();
             longg = location.getLongitude();
