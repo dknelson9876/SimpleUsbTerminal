@@ -236,7 +236,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         stopBtn.setOnClickListener(v -> send(BGapi.SCANNER_STOP));
 
         Spinner gps_priority = view.findViewById(R.id.gps_priority_spinner);
-        String[] gps_options = {"High Accuracy", "Balanced", "Power Saving"};
+        String[] gps_options = {"Power Saving", "Balanced", "High Accuracy"};
         ArrayAdapter<CharSequence> adapter = new ArrayAdapter<CharSequence>(getContext(), android.R.layout.simple_spinner_item, gps_options);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         gps_priority.setAdapter(adapter);
@@ -247,13 +247,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 if(activity instanceof MainActivity) {
                     switch(position){
                         case 0:
-                            ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_HIGH_ACCURACY);
+                            ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_LOW_POWER);
                             break;
                         case 1:
                             ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY);
                             break;
                         case 2:
-                            ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_LOW_POWER);
+                            ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_HIGH_ACCURACY);
                             break;
                     }
                 }
@@ -496,9 +496,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         //send setup and start commands after delay via custom Handler
         Handler handler = new Handler();
         Runnable clickSetup = () -> onSetupClicked(null);
-        handler.postDelayed(clickSetup, 500);
+        handler.postDelayed(clickSetup, 2500);
         Runnable clickStart = () -> onStartClicked(null);
-        handler.postDelayed(clickStart, 800);
+        handler.postDelayed(clickStart, 2700);
     }
 
     @Override
