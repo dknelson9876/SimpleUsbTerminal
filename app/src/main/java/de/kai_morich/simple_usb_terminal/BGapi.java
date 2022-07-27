@@ -10,6 +10,8 @@ import java.util.Map;
  * While these technically should be findable in Silicon Lab's documentation, it's a lot easier
  *  to open up the NCP Commander in Simplicity Studio, manually send the commands there, and turn
  *  on the option to display the bytes that were sent
+ *
+ *  TODO: Kotlin has sealed enums, which I think this should be?
  * */
 public class BGapi {
 

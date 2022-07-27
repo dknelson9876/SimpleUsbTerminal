@@ -52,6 +52,8 @@ import com.hoho.android.usbserial.driver.UsbSerialProber;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import de.kai_morich.simple_usb_terminal.services.FirebaseService;
+
 /**
  * The UI portion of the app that is displayed while connected to a USB serial device
  * There's a lot of non-UI logic still in here that needs to be cleaned up and/or removed

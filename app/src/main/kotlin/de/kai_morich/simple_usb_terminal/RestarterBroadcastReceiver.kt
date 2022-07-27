@@ -7,6 +7,8 @@ import androidx.work.Constraints
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
+import de.kai_morich.simple_usb_terminal.services.FirebaseWorker
+import de.kai_morich.simple_usb_terminal.services.SerialWorker
 
 /**
  * A custom BroadcastReceiver subclass that receives intents for when

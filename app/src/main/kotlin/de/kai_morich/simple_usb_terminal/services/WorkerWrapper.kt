@@ -1,4 +1,4 @@
-package de.kai_morich.simple_usb_terminal
+package de.kai_morich.simple_usb_terminal.services
 
 import android.content.Context
 import androidx.work.Constraints

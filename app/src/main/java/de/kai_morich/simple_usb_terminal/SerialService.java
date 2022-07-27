@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.Queue;
 
+import de.kai_morich.simple_usb_terminal.services.FirebaseService;
+
 /**
  * Service that serves as our end of communication with the Gecko device. Because I forked this
  * from a separate demo app to get a jump start, this class probably can be narrowed down.
@@ -45,8 +47,8 @@ import java.util.Queue;
 public class SerialService extends Service implements SerialListener {
 
 
-    class SerialBinder extends Binder {
-        SerialService getService() {
+    public class SerialBinder extends Binder {
+        public SerialService getService() {
             return SerialService.this;
         }
     }

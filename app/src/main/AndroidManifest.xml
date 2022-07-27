@@ -44,8 +44,8 @@
         </activity>
         <service android:name=".SerialService" />
         <service android:name=".SensorHelper" />
-        <service android:name=".FirebaseService" />
-        <receiver android:name=".FirebaseService$ActionListener" />
+        <service android:name=".services.FirebaseService" />
+        <receiver android:name=".services.FirebaseService$ActionListener" />
         <receiver android:name=".SerialService$ActionListener" />
         <receiver android:name=".RestarterBroadcastReceiver"
             android:label="StartServiceAtBoot"

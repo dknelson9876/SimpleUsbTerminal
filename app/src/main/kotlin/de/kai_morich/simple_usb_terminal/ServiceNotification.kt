@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import de.kai_morich.simple_usb_terminal.services.FirebaseService
 
 /**
  * A class that handles creating notifications. Adapted not very well from another online source

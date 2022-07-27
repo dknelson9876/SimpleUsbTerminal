@@ -1,4 +1,4 @@
-package de.kai_morich.simple_usb_terminal
+package de.kai_morich.simple_usb_terminal.services
 
 import android.annotation.SuppressLint
 import android.app.NotificationManager
@@ -13,7 +13,8 @@ import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.UploadTask
+import de.kai_morich.simple_usb_terminal.R
+import de.kai_morich.simple_usb_terminal.ServiceNotification
 import java.io.File
 import java.io.FileWriter
 import java.io.IOException
@@ -80,7 +81,9 @@ class FirebaseService : Service() {
         startWakeLock()
         try {
             currentNotification = ServiceNotification(this, NOTIFICATION_ID, false)
-            currentNotification!!.setNotification(this, "Terminal Upload Service", "Currently Running", R.mipmap.ic_launcher)
+            currentNotification!!.setNotification(this, "Terminal Upload Service", "Currently Running",
+                R.mipmap.ic_launcher
+            )
             startForeground(NOTIFICATION_ID, currentNotification!!.notification)
         } catch (e: Exception) {
             Log.e(TAG, "Error starting foreground process " + e.message)

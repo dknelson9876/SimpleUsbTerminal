@@ -27,6 +27,8 @@ import com.hoho.android.usbserial.driver.UsbSerialProber;
 import java.util.ArrayList;
 import java.util.Locale;
 
+import de.kai_morich.simple_usb_terminal.services.FirebaseService;
+
 /**
  * The original portion of what was initially displayed to the user. Handles listing all
  *  currently connected USB devices and noting which ones we already know how to talk to

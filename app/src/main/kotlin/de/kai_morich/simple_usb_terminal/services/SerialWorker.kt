@@ -1,4 +1,4 @@
-package de.kai_morich.simple_usb_terminal
+package de.kai_morich.simple_usb_terminal.services
 
 import android.content.Context
 import android.content.Intent
@@ -7,16 +7,20 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
+import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
+import de.kai_morich.simple_usb_terminal.R
+import de.kai_morich.simple_usb_terminal.SerialService
+import de.kai_morich.simple_usb_terminal.ServiceNotification
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * A wrapper class for starting an instance of FirebaseService that makes it less likely
- * to get put to sleep by the system
+ * A custom implementation of CoroutineWorker for starting an instance of SerialService
+ * in a way that is less likely to get put to sleep by the system
  * */
 @RequiresApi(Build.VERSION_CODES.O)
-class FirebaseWorker(private val context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
+class SerialWorker (private val context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
 
     companion object {
         private var TAG = this::class.simpleName
@@ -24,14 +28,14 @@ class FirebaseWorker(private val context: Context, workerParams: WorkerParameter
     }
 
     /**
-     * Inherited form CoroutineWorker.
-     * Starts a new instance of FirebaseService if one does not already exist
+     * Inherited from CoroutineWorker
+     * Starts a new instance of SerialService, if one does not already exist
      * */
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): ListenableWorker.Result {
         //do not launch if the service is already alive
-        if(FirebaseService.instance == null){
+        if(SerialService.getInstance() == null){
             withContext(Dispatchers.IO){
-                val trackerServiceIntent = Intent(context, FirebaseService::class.java)
+                val trackerServiceIntent = Intent(context, SerialService::class.java)
                 ServiceNotification.notificationText = "do not close the app, please"
                 ServiceNotification.notificationIcon = R.mipmap.ic_launcher
                 Log.i(TAG, "Launching tracker")
@@ -43,11 +47,11 @@ class FirebaseWorker(private val context: Context, workerParams: WorkerParameter
             }
         }
 
-        return Result.success()
+        return ListenableWorker.Result.success()
     }
 
     /**
-     * Required by the system because reasons
+     * Required by the system, because reasons
      * */
     override suspend fun getForegroundInfo(): ForegroundInfo {
         ServiceNotification.notificationText = "do not close the app, please"
