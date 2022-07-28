@@ -12,14 +12,14 @@ import androidx.annotation.ColorInt;
 
 import java.io.ByteArrayOutputStream;
 
-final class TextUtil {
+public final class TextUtil {
 
     @ColorInt static int caretBackground = 0xff666666;
 
     final static String newline_crlf = "\r\n";
     final static String newline_lf = "\n";
 
-    static byte[] fromHexString(final CharSequence s) {
+    public static byte[] fromHexString(final CharSequence s) {
         ByteArrayOutputStream buf = new ByteArrayOutputStream();
         byte b = 0;
         int nibble = 0;
@@ -49,7 +49,7 @@ final class TextUtil {
         return sb.toString();
     }
 
-    static void toHexString(StringBuilder sb, final byte[] buf) {
+    public static void toHexString(StringBuilder sb, final byte[] buf) {
         toHexString(sb, buf, 0, buf.length);
     }
 
