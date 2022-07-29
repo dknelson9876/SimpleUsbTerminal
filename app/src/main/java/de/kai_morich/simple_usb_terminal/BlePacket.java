@@ -2,8 +2,10 @@ package de.kai_morich.simple_usb_terminal;
 
 import android.annotation.SuppressLint;
 import android.location.Location;
+import android.os.Build;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -106,6 +108,14 @@ public class BlePacket {
                 + "\nChannel: " + (channel & 0xFF /*'cast' to unsigned*/)
                 + "\nPacket Type: 0x" + String.format("%02X", packet_type)
                 + "\nData: " + TextUtil.toHexString(data);
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    public String toShortString(){
+        return "Datetime: "+time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
+                +"\nAddr: "+addr
+                +"\nData: "+TextUtil.toHexString(data)
+                ;
     }
 
     /**
