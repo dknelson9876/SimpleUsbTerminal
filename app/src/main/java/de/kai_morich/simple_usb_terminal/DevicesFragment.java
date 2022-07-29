@@ -152,6 +152,10 @@ public class DevicesFragment extends ListFragment {
                 //TODO: Non-UI logic - should not be in a UI class
                 onListItemClick(null, null, listItems.size(), 0);
             }
+            if (device.getVendorId() == 6790 && device.getProductId() == 29987) {
+                // witmotion usb ttl adapter
+                onListItemClick(null, null, listItems.size(), 0);
+            }
         }
         listAdapter.notifyDataSetChanged();
     }
