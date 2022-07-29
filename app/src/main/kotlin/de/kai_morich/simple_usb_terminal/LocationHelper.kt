@@ -44,7 +44,7 @@ class LocationHelper constructor(private val context: Context) {
         // | PRIORITY_LOW_POWER               | Favors low power usage at the expense of location accuracy                   |
         // | PRIORITY_PASSIVE                 | Ensure no extra power usage, only receives location as other clients request |
         // +----------------------------------+------------------------------------------------------------------------------+
-        priority = Priority.PRIORITY_BALANCED_POWER_ACCURACY
+        priority = Priority.PRIORITY_LOW_POWER
 
         // other parameters of LocationRequest that may be worth messing with:
         // smallestDisplacement, expirationTime
