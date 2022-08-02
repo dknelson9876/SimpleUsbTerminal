@@ -399,6 +399,17 @@ public class SerialService extends Service implements SerialListener {
                     pendingBytes = data;
                 }
 
+            } else if ("message_system_boot".equals(BGapi.getResponseName(data))) {
+                //TODO: this is definitely just a bandaid for the real problem of the gecko rebooting
+                //the gecko mysteriously reset, so resend the setup and start commands
+                try {
+//                    write(TextUtil.fromHexString(BGapi.SCANNER_SET_MODE));
+//                    write(TextUtil.fromHexString(BGapi.SCANNER_SET_TIMING));
+//                    write(TextUtil.fromHexString(BGapi.CONNECTION_SET_PARAMETERS));
+                    write(TextUtil.fromHexString(BGapi.SCANNER_START));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             } else if (!BGapi.isKnownResponse(data)) {
                 //If the data isn't any kind of thing we can recognize, assume it's incomplete
 
