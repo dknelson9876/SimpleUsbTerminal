@@ -36,6 +36,7 @@ public class BGapi {
         commands.put("message_rotate_cw", "2002FF000101");
         commands.put("message_rotate_ccw", "2002FF000102");
         commands.put("message_rotate_stop", "2002FF000103");
+        commands.put("message_get_temp", "2002FF000104");
     }
 
     public static final String SCANNER_SET_MODE = commands.get("scanner_set_mode");
@@ -52,6 +53,10 @@ public class BGapi {
         //      and as a result does funny things
         return bytes.length > 3 && bytes[0] == (byte) 0xA1 && bytes[1] == 0x00
                 && bytes[2] == 0x05 && bytes[3] == 0x01;
+    }
+
+    public static boolean isTemperatureResponse(byte[] bytes) {
+        return bytes.length == 9 && bytes[bytes.length-1] == 0x69;
     }
 
     public static boolean isKnownResponse(byte[] bytes) {

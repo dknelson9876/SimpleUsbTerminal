@@ -130,6 +130,8 @@ public class SerialService extends Service implements SerialListener {
         }
     };
 
+    //TODO: temperature message runnable
+
     /**
      * Lifecycle
      */
@@ -165,6 +167,10 @@ public class SerialService extends Service implements SerialListener {
             motorHandler = new Handler(looper);
             motorHandler.post(rotateRunnable);
         }
+    }
+
+    private void startTemperatureHandler(){
+        //TODO
     }
 
     /**
@@ -399,6 +405,8 @@ public class SerialService extends Service implements SerialListener {
                     pendingBytes = data;
                 }
 
+            } else if(BGapi.isTemperatureResponse(data)){
+                //parse and store somewhere (FirebaseService?)
             } else if ("message_system_boot".equals(BGapi.getResponseName(data))) {
                 //TODO: this is definitely just a bandaid for the real problem of the gecko rebooting
                 //the gecko mysteriously reset, so resend the setup and start commands
