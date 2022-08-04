@@ -47,6 +47,7 @@ public class BGapi {
     public static final String ROTATE_CW = commands.get("message_rotate_cw");
     public static final String ROTATE_CCW = commands.get("message_rotate_ccw");
     public static final String ROTATE_STOP = commands.get("message_rotate_stop");
+    public static final String GET_TEMP = commands.get("message_get_temp");
 
     public static boolean isScanReportEvent(byte[] bytes) {
         // Note: the casting of 0xA1 is necessary because Java thinks that signed hex should exist?

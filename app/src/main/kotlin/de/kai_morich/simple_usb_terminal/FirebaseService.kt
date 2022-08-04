@@ -19,6 +19,7 @@ import java.io.FileWriter
 import java.io.IOException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * A class that serves as a wrapper for connecting and uploading files
@@ -29,15 +30,21 @@ import java.time.format.DateTimeFormatter
 @RequiresApi(Build.VERSION_CODES.O)
 class FirebaseService : Service() {
     private var currentNotification: ServiceNotification? = null
+
     // A wakelock is what helps us prevent this service from getting put to sleep
     private var wakeLock: PowerManager.WakeLock? = null
+
     // A Handler serves to run bits of code for us when we want it to
     private var handler: Handler? = null
     private var fw: FileWriter? = null
     private var file: File? = null
     private lateinit var timeoutRunnable: Runnable
+
     // How long, in ms, we should wait in between uploading the log
-    private val uploadDelay = 900000L /*15 minutes*/
+    private val uploadDelay = 15.minutes.inWholeMilliseconds
+
+    private var temperatureFw: FileWriter? = null
+    private var temperatureFile: File? = null
 
     companion object {
         private val TAG = FirebaseService::class.java.simpleName
@@ -59,14 +66,20 @@ class FirebaseService : Service() {
         super.onCreate()
         instance = this
 
-
-        var path = applicationContext.getExternalFilesDir(null)
+        val path = applicationContext.getExternalFilesDir(null)
         file = File(
             path,
             LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
                     + "_log.txt"
         )
         fw = FileWriter(file)
+
+        temperatureFile = File(
+            path,
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
+                    + "_templog.txt"
+        )
+        temperatureFw = FileWriter(temperatureFile)
     }
 
     /**
@@ -158,19 +171,19 @@ class FirebaseService : Service() {
      * Uploads the provided File [file] to remote Firebase Storage under the directory
      * log/*deviceName*/*filename*
      * */
-    private fun uploadFile(file: File) {
+    private fun uploadFile(file: File, dir: String) {
         Log.i(TAG, "uploadFile()")
         val storageRef = FirebaseStorage.getInstance().reference
         val uri = Uri.fromFile(file)
         //build the reference of where we want to put the file in Firebase
         val fileRef = storageRef.child(
-            "log/"
+            "$dir/"
                     + Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)
                     + "/" + uri.lastPathSegment
         )
         fileRef.putFile(uri)
             .addOnSuccessListener {
-//                Toast.makeText(applicationContext, "Scheduled Upload Success", Toast.LENGTH_SHORT).show()
+                Toast.makeText(applicationContext, "Upload Success $dir", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener {
 //                Toast.makeText(applicationContext, it.message, Toast.LENGTH_SHORT).show()
@@ -231,7 +244,7 @@ class FirebaseService : Service() {
 
             //upload the log
             // the ?.let syntax is Kotlin shorthand for a null check
-            file?.let { uploadFile(it) }
+            file?.let { uploadFile(it, "log") }
 
             //create new File + FileWriter
             val path = applicationContext.getExternalFilesDir(null)
@@ -241,6 +254,18 @@ class FirebaseService : Service() {
                         + "_log.txt"
             )
             fw = FileWriter(file)
+
+            temperatureFw?.close()
+            temperatureFile?.let {uploadFile(it, "geckoTemp")}
+            temperatureFile = File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
+                    + "_templog.txt")
+            temperatureFw = FileWriter(temperatureFile)
+        }
+    }
+
+    fun appendTemp(temp: Int) {
+        synchronized(this) {
+            temperatureFw?.write(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))+","+temp+"\n")
         }
     }
 

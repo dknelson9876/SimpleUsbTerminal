@@ -23,6 +23,7 @@ import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -413,7 +414,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             byte[] data;
             StringBuilder sb = new StringBuilder();
             TextUtil.toHexString(sb, TextUtil.fromHexString(str));
-            TextUtil.toHexString(sb, newline.getBytes());
+//            TextUtil.toHexString(sb, newline.getBytes());
             msg = sb.toString();
             data = TextUtil.fromHexString(msg);
             if (BGapi.isCommand(str)) {
@@ -436,6 +437,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
      * If the message is a packet, parse it into a packet object
      * */
     private void receive(byte[] data) {
+//        SpannableStringBuilder span = new SpannableStringBuilder("##"+TextUtil.toHexString(data)+"\n");
+//        span.setSpan(new ForegroundColorSpan(Color.CYAN), 0, span.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+//        receiveText.append(span);
         if (BGapi.isScanReportEvent(data)) {
             //original script recorded time, addr, rssi, channel, and data
             //TODO: Non-UI logic - should not be in UI class
@@ -456,6 +460,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 return;
 
             pendingPacket = BlePacket.parsePacket(data);
+        } else if(BGapi.isTemperatureResponse(data)){
+            int temperature = data[data.length-2];
+            SpannableStringBuilder tempSpan = new SpannableStringBuilder("Got temp: "+temperature+"\n");
+            tempSpan.setSpan(new ForegroundColorSpan(Color.rgb(255, 120, 0)), 0, tempSpan.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            receiveText.append(tempSpan);
         } else if (BGapi.isKnownResponse(data)) {
             String rsp = BGapi.getResponseName(data);
             if(rsp != null && !rsp.contains("rotate"))
@@ -515,6 +524,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onSerialIoError(Exception e) {
         status("connection lost: " + e.getMessage());
+//        status(Log.getStackTraceString(e));
         disconnect();
     }
 

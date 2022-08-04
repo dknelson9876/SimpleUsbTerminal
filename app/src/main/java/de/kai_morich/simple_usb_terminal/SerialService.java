@@ -86,6 +86,9 @@ public class SerialService extends Service implements SerialListener {
     private final double headingTolerance = 0.1;
     private static boolean isMotorRunning = true;
 
+    private final long temperatureInterval = 60000L; /*5 min*/
+    private Handler temperatureHandler;
+
     private BlePacket pendingPacket;
     private byte[] pendingBytes = null;
     private static SerialService instance;
@@ -131,6 +134,19 @@ public class SerialService extends Service implements SerialListener {
     };
 
     //TODO: temperature message runnable
+    private final Runnable temperatureRunnable = new Runnable() {
+        @Override
+        public void run() {
+            try{
+                write(TextUtil.fromHexString(BGapi.GET_TEMP));
+                Toast.makeText(getApplicationContext(), "Asked for temp", Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+                e.printStackTrace();
+            }
+            temperatureHandler.postDelayed(this, temperatureInterval);
+        }
+    };
 
     /**
      * Lifecycle
@@ -144,6 +160,7 @@ public class SerialService extends Service implements SerialListener {
         instance = this;
 
         startMotorHandler();
+        startTemperatureHandler();
     }
 
     /**
@@ -170,7 +187,11 @@ public class SerialService extends Service implements SerialListener {
     }
 
     private void startTemperatureHandler(){
-        //TODO
+        Looper looper = Looper.myLooper();
+        if(looper != null){
+            temperatureHandler = new Handler(looper);
+            temperatureHandler.postDelayed(temperatureRunnable, 5000);
+        }
     }
 
     /**
@@ -407,6 +428,8 @@ public class SerialService extends Service implements SerialListener {
 
             } else if(BGapi.isTemperatureResponse(data)){
                 //parse and store somewhere (FirebaseService?)
+                int temp = data[data.length - 2];
+                FirebaseService.Companion.getServiceInstance().appendTemp(temp);
             } else if ("message_system_boot".equals(BGapi.getResponseName(data))) {
                 //TODO: this is definitely just a bandaid for the real problem of the gecko rebooting
                 //the gecko mysteriously reset, so resend the setup and start commands
