@@ -86,7 +86,7 @@ public class SerialService extends Service implements SerialListener {
     private final double headingTolerance = 0.1;
     private static boolean isMotorRunning = true;
 
-    private final long temperatureInterval = 60000L; /*5 min*/
+    private final long temperatureInterval = 300000; /*5 min*/
     private Handler temperatureHandler;
 
     private BlePacket pendingPacket;
