@@ -133,7 +133,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onStart() {
         super.onStart();
-        if (service != null)
+        if (service != null) //TODO: adapt attach to connectReceiver
             service.attach(this);
         else
             getActivity().startService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
@@ -146,7 +146,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onStop() {
         if (service != null && !getActivity().isChangingConfigurations())
-            service.detach();
+            service.detach(); //TODO: adapt detach to disconnectReceiver
         super.onStop();
     }
 
@@ -281,6 +281,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         menu.findItem(R.id.truncate).setChecked(truncate);
     }
 
+    //TODO: what is the replacement for this deprecated method?
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
@@ -498,6 +499,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     //region SerialListener
 
 
+    //TODO: replace SerialListener methods with SerialReceiver methods
     @Override
     public void onSerialConnect() {
         status("connected");

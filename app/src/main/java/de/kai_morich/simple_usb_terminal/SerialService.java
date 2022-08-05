@@ -22,6 +22,7 @@ import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -65,16 +66,64 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
+    private static class SerialReceiverContainer {
+        SerialReceiver receiver;
+        Queue<PendingMessage> queue1, queue2;
+        boolean connected;
+
+        public SerialReceiverContainer(SerialReceiver receiver, boolean connected) {
+            this.receiver = receiver;
+            this.connected = connected;
+            queue1 = new LinkedList<>();
+            queue2 = new LinkedList<>();
+        }
+    }
+
+    private static class PendingMessage {
+        SerialReceiver.MessageType type;
+
+        //trying to treat this as if in a c-style union -> only one will exist in a given instance
+        BlePacket packet;
+        int temp;
+        String message;
+        Exception e;
+
+        public PendingMessage(SerialReceiver.MessageType type) {
+            this.type = type;
+        }
+
+        public PendingMessage(SerialReceiver.MessageType type, BlePacket packet) {
+            this.type = type;
+            this.packet = packet;
+        }
+
+        public PendingMessage(SerialReceiver.MessageType type, int temp) {
+            this.type = type;
+            this.temp = temp;
+        }
+
+        public PendingMessage(SerialReceiver.MessageType type, String message) {
+            this.type = type;
+            this.message = message;
+        }
+
+        public PendingMessage(SerialReceiver.MessageType type, Exception e) {
+            this.type = type;
+            this.e = e;
+        }
+    }
+
     private final Handler mainLooper;
     private Handler motorHandler;
     private final IBinder binder;
-    private final Queue<QueueItem> queue1, queue2;
+//    private final Queue<QueueItem> queue1, queue2;
 
     // The representation of the actual connection
     private SerialSocket socket;
     // The object that wants to be forwarded the events from this service
-    private SerialListener uiFacingListener;
+//    private SerialListener uiFacingListener;
     private boolean connected;
+    private final HashMap<SerialReceiver, SerialReceiverContainer> receivers;
 
     // rotation variables
     private long motorRotateTime = 500; /*.5 s*/
@@ -133,11 +182,10 @@ public class SerialService extends Service implements SerialListener {
         }
     };
 
-    //TODO: temperature message runnable
     private final Runnable temperatureRunnable = new Runnable() {
         @Override
         public void run() {
-            try{
+            try {
                 write(TextUtil.fromHexString(BGapi.GET_TEMP));
                 Toast.makeText(getApplicationContext(), "Asked for temp", Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
@@ -154,8 +202,10 @@ public class SerialService extends Service implements SerialListener {
     public SerialService() {
         mainLooper = new Handler(Looper.getMainLooper());
         binder = new SerialBinder();
-        queue1 = new LinkedList<>();
-        queue2 = new LinkedList<>();
+//        queue1 = new LinkedList<>();
+//        queue2 = new LinkedList<>();
+
+        receivers = new HashMap<>();
 
         instance = this;
 
@@ -186,9 +236,9 @@ public class SerialService extends Service implements SerialListener {
         }
     }
 
-    private void startTemperatureHandler(){
+    private void startTemperatureHandler() {
         Looper looper = Looper.myLooper();
-        if(looper != null){
+        if (looper != null) {
             temperatureHandler = new Handler(looper);
             temperatureHandler.postDelayed(temperatureRunnable, 5000);
         }
@@ -258,45 +308,114 @@ public class SerialService extends Service implements SerialListener {
      * <p>
      * This method is expected to be used by UI elements i.e. TerminalFragment
      */
-    public void attach(SerialListener listener) {
-        //Not entirely sure why this is necessary
-        if (Looper.getMainLooper().getThread() != Thread.currentThread())
-            throw new IllegalArgumentException("not in main thread");
-        cancelNotification();
-        // use synchronized() to prevent new items in queue2
-        // new items will not be added to queue1 because mainLooper.post and attach() run in main thread
-        synchronized (this) {
-            this.uiFacingListener = listener;
-        }
-        // queue1 will contain all events that posted in the time between disconnecting and detaching
-        for(QueueItem item : queue1) {
-            switch(item.type) {
-                case Connect:       listener.onSerialConnect      (); break;
-                case ConnectError:  listener.onSerialConnectError (item.e); break;
-                case Read:          listener.onSerialRead         (item.data); break;
-                case IoError:       listener.onSerialIoError      (item.e); break;
+//    public void attach(SerialListener listener) {
+//        //Not entirely sure why this is necessary
+//        if (Looper.getMainLooper().getThread() != Thread.currentThread())
+//            throw new IllegalArgumentException("not in main thread");
+//        cancelNotification();
+//        // use synchronized() to prevent new items in queue2
+//        // new items will not be added to queue1 because mainLooper.post and attach() run in main thread
+//        synchronized (this) {
+//            this.uiFacingListener = listener;
+//        }
+//        // queue1 will contain all events that posted in the time between disconnecting and detaching
+//        for(QueueItem item : queue1) {
+//            switch(item.type) {
+//                case Connect:       listener.onSerialConnect      (); break;
+//                case ConnectError:  listener.onSerialConnectError (item.e); break;
+//                case Read:          listener.onSerialRead         (item.data); break;
+//                case IoError:       listener.onSerialIoError      (item.e); break;
+//            }
+//        }
+//        // queue2 will contain all events that posted after detaching
+//        for(QueueItem item : queue2) {
+//            switch(item.type) {
+//                case Connect:       listener.onSerialConnect      (); break;
+//                case ConnectError:  listener.onSerialConnectError (item.e); break;
+//                case Read:          listener.onSerialRead         (item.data); break;
+//                case IoError:       listener.onSerialIoError      (item.e); break;
+//            }
+//        }
+//        queue1.clear();
+//        queue2.clear();
+//    }
+
+//    public void detach() {
+//        if (connected)
+//            createNotification();
+//        // items already in event queue (posted before detach() to mainLooper) will end up in queue1
+//        // items occurring later, will be moved directly to queue2
+//        // detach() and mainLooper.post run in the main thread, so all items are caught
+//        uiFacingListener = null;
+//    }
+    public void connectReceiver(SerialReceiver receiver) {
+        if (receivers.containsKey(receiver)) {
+            //receiver existed but was not currently connected, so check it's queues
+            SerialReceiverContainer container = receivers.get(receiver);
+            if (container != null) {
+                // queue1 will contain all events that posted in the time between disconnecting from socket and disconnecting receiver
+                for (PendingMessage message : container.queue1) {
+                    switch (message.type) {
+                        case SCAN_REPORT:
+                            container.receiver.onReceiveScanReport(message.packet);
+                            break;
+                        case TEMP_REPORT:
+                            container.receiver.onReceiveTempReport(message.temp);
+                            break;
+                        case GENERIC_RESPONSE:
+                            container.receiver.onReceiveGenericResponse(message.message);
+                            break;
+                        case CONNECT:
+                            container.receiver.onSerialConnect();
+                            break;
+                        case CONNECT_ERROR:
+                            container.receiver.onSerialConnectError(message.e);
+                            break;
+                        case IO_ERROR:
+                            container.receiver.onSerialIoError(message.e);
+                            break;
+                    }
+                }
+                for (PendingMessage message : container.queue2) {
+                    switch (message.type) {
+                        case SCAN_REPORT:
+                            container.receiver.onReceiveScanReport(message.packet);
+                            break;
+                        case TEMP_REPORT:
+                            container.receiver.onReceiveTempReport(message.temp);
+                            break;
+                        case GENERIC_RESPONSE:
+                            container.receiver.onReceiveGenericResponse(message.message);
+                            break;
+                        case CONNECT:
+                            container.receiver.onSerialConnect();
+                            break;
+                        case CONNECT_ERROR:
+                            container.receiver.onSerialConnectError(message.e);
+                            break;
+                        case IO_ERROR:
+                            container.receiver.onSerialIoError(message.e);
+                            break;
+                    }
+                }
+                container.queue1.clear();
+                container.queue2.clear();
             }
+        } else {
+            SerialReceiverContainer container = new SerialReceiverContainer(receiver, true);
+            receivers.put(receiver, container);
         }
-        // queue2 will contain all events that posted after detaching
-        for(QueueItem item : queue2) {
-            switch(item.type) {
-                case Connect:       listener.onSerialConnect      (); break;
-                case ConnectError:  listener.onSerialConnectError (item.e); break;
-                case Read:          listener.onSerialRead         (item.data); break;
-                case IoError:       listener.onSerialIoError      (item.e); break;
-            }
-        }
-        queue1.clear();
-        queue2.clear();
     }
 
-    public void detach() {
-        if (connected)
-            createNotification();
-        // items already in event queue (posted before detach() to mainLooper) will end up in queue1
-        // items occurring later, will be moved directly to queue2
-        // detach() and mainLooper.post run in the main thread, so all items are caught
-        uiFacingListener = null;
+    public void disconnectReceiver(SerialReceiver receiver) {
+        SerialReceiverContainer container = receivers.get(receiver);
+        if (container != null) {
+            container.connected = false;
+        }
+    }
+
+    public void removeReceiver(SerialReceiver receiver) {
+        receivers.remove(receiver);
     }
 
     /**
@@ -364,16 +483,18 @@ public class SerialService extends Service implements SerialListener {
     public void onSerialConnect() {
         if (connected) {
             synchronized (this) {
-                if (uiFacingListener != null) {
-                    mainLooper.post(() -> {
-                        if (uiFacingListener != null) {
-                            uiFacingListener.onSerialConnect();
-                        } else {
-                            queue1.add(new QueueItem(QueueType.Connect, null, null));
-                        }
-                    });
-                } else {
-                    queue2.add(new QueueItem(QueueType.Connect, null, null));
+                for (SerialReceiverContainer container : receivers.values()) {
+                    if (container.connected) {
+                        mainLooper.post(() -> {
+                            if (container.connected) {
+                                container.receiver.onSerialConnect();
+                            } else {
+                                container.queue1.add(new PendingMessage(SerialReceiver.MessageType.CONNECT));
+                            }
+                        });
+                    } else {
+                        container.queue2.add(new PendingMessage(SerialReceiver.MessageType.CONNECT));
+                    }
                 }
             }
         }
@@ -381,23 +502,23 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialConnectError(Exception e) {
         if (connected) {
-            FirebaseService.Companion.getInstance().appendFile(e.getMessage() + "\n");
-            FirebaseService.Companion.getInstance().appendFile(Log.getStackTraceString(e) + "\n");
             synchronized (this) {
-                if (uiFacingListener != null) {
-                    mainLooper.post(() -> {
-                        if (uiFacingListener != null) {
-                            uiFacingListener.onSerialConnectError(e);
-                        } else {
-                            queue1.add(new QueueItem(QueueType.ConnectError, null, e));
-                            cancelNotification();
-                            disconnect();
-                        }
-                    });
-                } else {
-                    queue2.add(new QueueItem(QueueType.ConnectError, null, e));
-                    cancelNotification();
-                    disconnect();
+                for (SerialReceiverContainer container : receivers.values()) {
+                    if (container.connected) {
+                        mainLooper.post(() -> {
+                            if (container.connected) {
+                                container.receiver.onSerialConnectError(e);
+                            } else {
+                                container.queue1.add(new PendingMessage(SerialReceiver.MessageType.CONNECT_ERROR, e));
+                                cancelNotification();
+                                disconnect();
+                            }
+                        });
+                    } else {
+                        container.queue2.add(new PendingMessage(SerialReceiver.MessageType.CONNECT_ERROR, e));
+                        cancelNotification();
+                        disconnect();
+                    }
                 }
             }
         }
@@ -405,77 +526,85 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialRead(byte[] data) {
         if (connected) {
-            //TODO find a more organized way to do this parsing
-
-            // parse here to determine if it should be sent to FirebaseService too
-            if (BGapi.isScanReportEvent(data)) {
-                //this is the beginning of a new report event, therefore we assume that
-                // if a packet is pending, it is complete and save it before parsing the most
-                // recent data
-                if (pendingPacket != null) {
-                    FirebaseService.Companion.getServiceInstance().appendFile(pendingPacket.toCSV());
-                }
-
-                BlePacket temp = BlePacket.parsePacket(data);
-                //did the new data parse successfully?
-                if (temp != null) {
-                    //Yes - save the packet
-                    pendingPacket = temp;
-                } else {
-                    //No - save the raw bytes
-                    pendingBytes = data;
-                }
-
-            } else if(BGapi.isTemperatureResponse(data)){
-                //parse and store somewhere (FirebaseService?)
-                int temp = data[data.length - 2];
-                FirebaseService.Companion.getServiceInstance().appendTemp(temp);
-            } else if ("message_system_boot".equals(BGapi.getResponseName(data))) {
-                //TODO: this is definitely just a bandaid for the real problem of the gecko rebooting
-                //the gecko mysteriously reset, so resend the setup and start commands
-                try {
-//                    write(TextUtil.fromHexString(BGapi.SCANNER_SET_MODE));
-//                    write(TextUtil.fromHexString(BGapi.SCANNER_SET_TIMING));
-//                    write(TextUtil.fromHexString(BGapi.CONNECTION_SET_PARAMETERS));
-                    write(TextUtil.fromHexString(BGapi.SCANNER_START));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            } else if (!BGapi.isKnownResponse(data)) {
-                //If the data isn't any kind of thing we can recognize, assume it's incomplete
-
-                //If there's already partial data waiting
-                if (pendingBytes != null) {
-                    //add this data to the end of it
-                    pendingBytes = appendByteArray(pendingBytes, data);
-
-                    //and try to parse it again
-                    BlePacket temp = BlePacket.parsePacket(pendingBytes);
-                    if (temp != null) {
-                        pendingPacket = temp;
-                        pendingBytes = null;
+            PendingMessage message = parseData(data);
+            if (message == null) {
+                return;
+            }
+            synchronized (this) {
+                for (SerialReceiverContainer container : receivers.values()) {
+                    if (container.connected) {
+                        mainLooper.post(() -> {
+                            if (container.connected) {
+                                switch (message.type) {
+                                    case SCAN_REPORT:
+                                        container.receiver.onReceiveScanReport(message.packet);
+                                        break;
+                                    case TEMP_REPORT:
+                                        container.receiver.onReceiveTempReport(message.temp);
+                                        break;
+                                    case GENERIC_RESPONSE:
+                                        container.receiver.onReceiveGenericResponse(message.message);
+                                        break;
+                                }
+                            } else {
+                                container.queue1.add(message);
+                            }
+                        });
+                    } else {
+                        container.queue2.add(message);
                     }
                 }
-                //and it not, try to add it to the end of pending packet
-                else if (pendingPacket != null) {
-                    pendingPacket.appendData(data);
-                }
             }
+        }
+    }
 
-            //original content of method
-            synchronized (this) {
-                if (uiFacingListener != null) {
-                    mainLooper.post(() -> {
-                        if (uiFacingListener != null) {
-                            uiFacingListener.onSerialRead(data);
-                        } else {
-                            queue1.add(new QueueItem(QueueType.Read, data, null));
-                        }
-                    });
-                } else {
-                    queue2.add(new QueueItem(QueueType.Read, data, null));
+    private PendingMessage parseData(byte[] data) {
+        //TODO find a more organized way to do this parsing
+
+        // parse here to determine if it should be sent to FirebaseService too
+        if (BGapi.isScanReportEvent(data)) {
+            //this is the beginning of a new report event, therefore we assume that
+            // if a packet is pending, it is complete and save it before parsing the most
+            // recent data
+            PendingMessage message = null;
+            if (pendingPacket != null) {
+                message = new PendingMessage(SerialReceiver.MessageType.SCAN_REPORT, pendingPacket);
+            }
+            BlePacket temp = BlePacket.parsePacket(data);
+            //did the new data parse successfully?
+            if (temp != null) {
+                //Yes - save the packet
+                pendingPacket = temp;
+            } else {
+                //No - save the raw bytes
+                pendingBytes = data;
+            }
+            return message;
+        } else if (BGapi.isTemperatureResponse(data)) {
+            int temp = data[data.length - 2];
+            return new PendingMessage(SerialReceiver.MessageType.TEMP_REPORT, temp);
+        } else if (BGapi.isKnownResponse(data)) {
+            return new PendingMessage(SerialReceiver.MessageType.GENERIC_RESPONSE, BGapi.getResponseName(data));
+        } else {
+            //If the data isn't any kind of thing we can recognize, assume it's incomplete
+
+            //If there's already partial data waiting
+            if (pendingBytes != null) {
+                //add this data to the end of it
+                pendingBytes = appendByteArray(pendingBytes, data);
+
+                //and try to parse it again
+                BlePacket temp = BlePacket.parsePacket(pendingBytes);
+                if (temp != null) {
+                    pendingPacket = temp;
+                    pendingBytes = null;
                 }
             }
+            //and it not, try to add it to the end of pending packet
+            else if (pendingPacket != null) {
+                pendingPacket.appendData(data);
+            }
+            return null;
         }
     }
 
@@ -491,23 +620,23 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialIoError(Exception e) {
         if (connected) {
-            FirebaseService.Companion.getServiceInstance().appendFile(e.getMessage() + "\n");
-            FirebaseService.Companion.getServiceInstance().appendFile(Log.getStackTraceString(e) + "\n");
             synchronized (this) {
-                if (uiFacingListener != null) {
-                    mainLooper.post(() -> {
-                        if (uiFacingListener != null) {
-                            uiFacingListener.onSerialIoError(e);
-                        } else {
-                            queue1.add(new QueueItem(QueueType.IoError, null, e));
-                            cancelNotification();
-                            disconnect();
-                        }
-                    });
-                } else {
-                    queue2.add(new QueueItem(QueueType.IoError, null, e));
-                    cancelNotification();
-                    disconnect();
+                for (SerialReceiverContainer container : receivers.values()) {
+                    if (container.connected) {
+                        mainLooper.post(() -> {
+                            if (container.connected) {
+                                container.receiver.onSerialIoError(e);
+                            } else {
+                                container.queue1.add(new PendingMessage(SerialReceiver.MessageType.IO_ERROR, e));
+                                cancelNotification();
+                                disconnect();
+                            }
+                        });
+                    } else {
+                        container.queue2.add(new PendingMessage(SerialReceiver.MessageType.IO_ERROR, e));
+                        cancelNotification();
+                        disconnect();
+                    }
                 }
             }
         }
