@@ -59,7 +59,7 @@ import java.time.format.DateTimeFormatter;
  * entirely as we won't actually use it
  * */
 @RequiresApi(api = Build.VERSION_CODES.O)
-public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
+public class TerminalFragment extends Fragment implements ServiceConnection, SerialReceiver {
 
     private void onSetupClicked(View view1) {
         send(BGapi.SCANNER_SET_MODE);
@@ -134,7 +134,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onStart() {
         super.onStart();
         if (service != null) //TODO: adapt attach to connectReceiver
-            service.attach(this);
+            service.connectReceiver(this);
         else
             getActivity().startService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
     }
@@ -146,7 +146,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onStop() {
         if (service != null && !getActivity().isChangingConfigurations())
-            service.detach(); //TODO: adapt detach to disconnectReceiver
+            service.disconnectReceiver(this); //TODO: adapt detach to disconnectReceiver
         super.onStop();
     }
 
@@ -186,7 +186,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onServiceConnected(ComponentName name, IBinder binder) {
         service = ((SerialService.SerialBinder) binder).getService();
-        service.attach(this);
+        service.connectReceiver(this);
         if (initialStart && isResumed()) {
             initialStart = false;
             getActivity().runOnUiThread(this::connect);
@@ -337,7 +337,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     /**
-     * Do all the listing and check required to connect to the USB device using the details
+     * Do all the listing and checks required to connect to the USB device using the details
      * that were passed when this Fragment was started
      * But some of this seems like duplicate logic from DevicesFragment, so this might be able
      * to be reduced
@@ -489,17 +489,43 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
      * Print to the textview in a different color so that it stands out
      * */
     void status(String str) {
+        appendLog(str, getResources().getColor(R.color.colorStatusText));
+    }
+
+    void appendLog(String str, int color){
         SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
-        spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        spn.setSpan(new ForegroundColorSpan(color), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         receiveText.append(spn);
     }
 
     //endregion
 
-    //region SerialListener
+    //region SerialReceiver
 
 
-    //TODO: replace SerialListener methods with SerialReceiver methods
+    @Override
+    public void onReceiveScanReport(BlePacket packet) {
+        String msg = packet.toString();
+        if (truncate) {
+            int length = msg.length();
+            if (length > msg.lastIndexOf('\n') + 40) {
+                length = msg.lastIndexOf('\n') + 40;
+            }
+            msg = msg.substring(0, length) + "…";
+        }
+        appendLog(msg+"\n", Color.MAGENTA);
+    }
+
+    @Override
+    public void onReceiveTempReport(int temp) {
+        appendLog("Got temp: "+temp, Color.rgb(255, 120, 0));
+    }
+
+    @Override
+    public void onReceiveGenericResponse(String response) {
+        appendLog(response, getResources().getColor(R.color.colorRecieveText));
+    }
+
     @Override
     public void onSerialConnect() {
         status("connected");
@@ -516,11 +542,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onSerialConnectError(Exception e) {
         status("connection failed: " + e.getMessage());
         disconnect();
-    }
-
-    @Override
-    public void onSerialRead(byte[] data) {
-        receive(data);
     }
 
     @Override

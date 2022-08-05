@@ -6,8 +6,10 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
@@ -45,26 +47,25 @@ import java.util.Queue;
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class SerialService extends Service implements SerialListener {
 
-
     class SerialBinder extends Binder {
         SerialService getService() {
             return SerialService.this;
         }
     }
 
-    private enum QueueType {Connect, ConnectError, Read, IoError}
-
-    private static class QueueItem {
-        QueueType type;
-        byte[] data;
-        Exception e;
-
-        QueueItem(QueueType type, byte[] data, Exception e) {
-            this.type = type;
-            this.data = data;
-            this.e = e;
-        }
-    }
+//    private enum QueueType {Connect, ConnectError, Read, IoError}
+//
+//    private static class QueueItem {
+//        QueueType type;
+//        byte[] data;
+//        Exception e;
+//
+//        QueueItem(QueueType type, byte[] data, Exception e) {
+//            this.type = type;
+//            this.data = data;
+//            this.e = e;
+//        }
+//    }
 
     private static class SerialReceiverContainer {
         SerialReceiver receiver;
@@ -526,6 +527,7 @@ public class SerialService extends Service implements SerialListener {
 
     public void onSerialRead(byte[] data) {
         if (connected) {
+            //TODO: toggleable send raw data
             PendingMessage message = parseData(data);
             if (message == null) {
                 return;
@@ -660,6 +662,25 @@ public class SerialService extends Service implements SerialListener {
                     }
                 }
             }
+        }
+    }
+
+    public static class SerialServiceConnection implements ServiceConnection {
+
+        private SerialService service;
+
+        public SerialService getService() {
+            return service;
+        }
+
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            service = ((SerialService.SerialBinder) iBinder).getService();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            service = null;
         }
     }
 

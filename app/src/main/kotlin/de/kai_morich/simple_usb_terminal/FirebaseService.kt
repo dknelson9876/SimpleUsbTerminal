@@ -3,15 +3,15 @@ package de.kai_morich.simple_usb_terminal
 import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.app.Service
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
+import android.content.*
+import android.content.Context.BIND_AUTO_CREATE
 import android.net.Uri
 import android.os.*
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.lifecycle.ViewModelProvider.NewInstanceFactory.Companion.instance
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.UploadTask
 import java.io.File
@@ -28,7 +28,11 @@ import kotlin.time.Duration.Companion.minutes
  * TODO: keep track of how many files we create and start to delete some of them
  * */
 @RequiresApi(Build.VERSION_CODES.O)
-class FirebaseService : Service() {
+class FirebaseService(
+    private val context: Context,
+    private val serviceConnection: SerialService.SerialServiceConnection
+    ) : Service(), SerialReceiver, ServiceConnection by serviceConnection {
+
     private var currentNotification: ServiceNotification? = null
 
     // A wakelock is what helps us prevent this service from getting put to sleep
@@ -54,17 +58,19 @@ class FirebaseService : Service() {
         const val KEY_NOTIFICATION_ID = "notificationID"
         const val KEY_NOTIFICATION_STOP_ACTION = "de.kai_morich.simple_usb_terminal.NOTIFICATION_STOP"
 
-        fun getServiceInstance(): FirebaseService {
-            if (instance == null){
-                instance = FirebaseService()
-            }
-            return instance!!
-        }
+//        fun getServiceInstance(): FirebaseService {
+//            if (instance == null){
+//                instance = FirebaseService()
+//            }
+//            return instance!!
+//        }
     }
 
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        context.bindService(Intent(context, SerialService::class.java), this, BIND_AUTO_CREATE)
 
         val path = applicationContext.getExternalFilesDir(null)
         file = File(
@@ -155,6 +161,7 @@ class FirebaseService : Service() {
         Log.i(TAG, "onDestroy")
         stopHandler()
         if (wakeLock != null) wakeLock!!.release()
+        serialService.disconnectReceiver(this)
         stopService(Intent(applicationContext, FirebaseService::class.java))
     }
 
@@ -224,11 +231,11 @@ class FirebaseService : Service() {
     /**
      * Adds [csv] as a new line on the end of the current file
      * */
-    fun appendFile(csv: String) {
+    private fun appendFile(csv: String) {
         //synchronized to prevent the off chance that we try to write to a file that is currently
         // being uploaded
         synchronized(this) {
-            fw?.write(csv);
+            fw?.write(csv)
         }
     }
 
@@ -263,7 +270,7 @@ class FirebaseService : Service() {
         }
     }
 
-    fun appendTemp(temp: Int) {
+    private fun appendTemp(temp: Int) {
         synchronized(this) {
             temperatureFw?.write(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))+","+temp+"\n")
         }
@@ -292,5 +299,38 @@ class FirebaseService : Service() {
 
     }
 
+    override fun onReceiveScanReport(packet: BlePacket) {
+        appendFile(packet.toCSV())
+    }
+
+    override fun onReceiveTempReport(temp: Int) {
+        appendTemp(temp)
+    }
+
+    override fun onReceiveGenericResponse(response: String?) {
+        // Do nothing
+    }
+
+    override fun onSerialConnect() {
+        // Do nothing
+    }
+
+    override fun onSerialConnectError(e: java.lang.Exception) {
+        appendFile(e.message+"\n")
+        appendFile(Log.getStackTraceString(e)+"\n")
+    }
+
+    override fun onSerialIoError(e: java.lang.Exception) {
+        appendFile(e.message+"\n")
+        appendFile(Log.getStackTraceString(e)+"\n")
+    }
+
+    override fun onServiceConnected(p0: ComponentName?, p1: IBinder?) {
+        TODO("Not yet implemented")
+    }
+
+    override fun onServiceDisconnected(p0: ComponentName?) {
+        TODO("Not yet implemented")
+    }
 
 }
