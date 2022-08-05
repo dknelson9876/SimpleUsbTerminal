@@ -321,9 +321,10 @@ class TerminalFragment : Fragment(), ServiceConnection, SerialListener {
             return
         }
         if (usbConnection == null) {
-            if (!usbManager.hasPermission(driver.device)) status("connection failed: permission denied") else status(
-                "connection failed: open failed"
-            )
+            if (!usbManager.hasPermission(driver.device))
+                status("connection failed: permission denied")
+            else
+                status("connection failed: open failed")
             return
         }
         connected = Connected.Pending

@@ -26,7 +26,7 @@ public class SerialSocket implements SerialInputOutputManager.Listener {
     private UsbSerialPort serialPort;
     private SerialInputOutputManager ioManager;
 
-    SerialSocket(Context context, UsbDeviceConnection connection, UsbSerialPort serialPort) {
+    public SerialSocket(Context context, UsbDeviceConnection connection, UsbSerialPort serialPort) {
         if (context instanceof Activity)
             throw new InvalidParameterException("expected non UI context");
         this.context = context;
