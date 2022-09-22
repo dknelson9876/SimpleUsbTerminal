@@ -120,6 +120,8 @@ public class SerialService extends Service implements SerialListener {
                         rotateCW = !rotateCW;
                     }
                     lastHeading = currentHeading;
+
+                    FirebaseService.Companion.getServiceInstance().appendHeading(currentHeading);
                 }
 
                 //As long as we are to continue moving, schedule this method to be run again

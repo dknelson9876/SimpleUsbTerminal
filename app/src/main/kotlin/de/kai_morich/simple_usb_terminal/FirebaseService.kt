@@ -46,6 +46,9 @@ class FirebaseService : Service() {
     private var temperatureFw: FileWriter? = null
     private var temperatureFile: File? = null
 
+    private var headingFw: FileWriter? = null
+    private var headingFile: File? = null
+
     companion object {
         private val TAG = FirebaseService::class.java.simpleName
         var instance: FirebaseService? = null
@@ -80,6 +83,13 @@ class FirebaseService : Service() {
                     + "_templog.txt"
         )
         temperatureFw = FileWriter(temperatureFile)
+
+        headingFile = File(
+            path,
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
+                    + "_headings.txt"
+        )
+        headingFw = FileWriter(headingFile)
     }
 
     /**
@@ -260,12 +270,24 @@ class FirebaseService : Service() {
             temperatureFile = File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
                     + "_templog.txt")
             temperatureFw = FileWriter(temperatureFile)
+
+            headingFw?.close()
+            headingFile?.let {uploadFile(it, "headings")}
+            headingFile = File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
+                    + "_headings.txt")
+            headingFw = FileWriter(headingFile)
         }
     }
 
     fun appendTemp(temp: Int) {
         synchronized(this) {
             temperatureFw?.write(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))+","+temp+"\n")
+        }
+    }
+
+    fun appendHeading(heading: Double){
+        synchronized(this){
+            headingFw?.write(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))+","+heading+"\n")
         }
     }
 
