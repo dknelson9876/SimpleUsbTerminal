@@ -13,7 +13,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.UploadTask
 import java.io.File
 import java.io.FileWriter
 import java.io.IOException
@@ -36,12 +35,12 @@ class FirebaseService : Service() {
 
     // A Handler serves to run bits of code for us when we want it to
     private var handler: Handler? = null
-    private var fw: FileWriter? = null
-    private var file: File? = null
     private lateinit var timeoutRunnable: Runnable
-
     // How long, in ms, we should wait in between uploading the log
-    private val uploadDelay = 15.minutes.inWholeMilliseconds
+    private val uploadDelay = 1.minutes.inWholeMilliseconds
+
+    private var logFw: FileWriter? = null
+    private var logFile: File? = null
 
     private var temperatureFw: FileWriter? = null
     private var temperatureFile: File? = null
@@ -55,10 +54,11 @@ class FirebaseService : Service() {
         private const val NOTIFICATION_ID = 3956
 
         const val KEY_NOTIFICATION_ID = "notificationID"
-        const val KEY_NOTIFICATION_STOP_ACTION = "de.kai_morich.simple_usb_terminal.NOTIFICATION_STOP"
+        const val KEY_NOTIFICATION_STOP_ACTION =
+            "de.kai_morich.simple_usb_terminal.NOTIFICATION_STOP"
 
         fun getServiceInstance(): FirebaseService {
-            if (instance == null){
+            if (instance == null) {
                 instance = FirebaseService()
             }
             return instance!!
@@ -70,25 +70,13 @@ class FirebaseService : Service() {
         instance = this
 
         val path = applicationContext.getExternalFilesDir(null)
-        file = File(
-            path,
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
-                    + "_log.txt"
-        )
-        fw = FileWriter(file)
+        logFile = File(path,getDateTime() + "_log.txt")
+        logFw = FileWriter(logFile)
 
-        temperatureFile = File(
-            path,
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
-                    + "_templog.txt"
-        )
+        temperatureFile = File(path,getDateTime() + "_templog.txt")
         temperatureFw = FileWriter(temperatureFile)
 
-        headingFile = File(
-            path,
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
-                    + "_headings.txt"
-        )
+        headingFile = File(path,getDateTime() + "_headings.txt")
         headingFw = FileWriter(headingFile)
     }
 
@@ -117,7 +105,7 @@ class FirebaseService : Service() {
      *    in this case it's on purpose
      */
     /**
-     * Retrieve a wakelock from the system to tell it "Don't put this to sleep
+     * Retrieve a wakelock from the system to tell it "Don't put this to sleep"
      * */
     private fun startWakeLock() {
         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
@@ -136,7 +124,7 @@ class FirebaseService : Service() {
 
             timeoutRunnable = Runnable {
                 uploadLog()
-
+//                Toast.makeText(applicationContext, "Handler fired", Toast.LENGTH_SHORT).show();
                 //after uploadDelay milliseconds, run the code inside timeoutRunnable again
                 handler?.postDelayed(timeoutRunnable, uploadDelay)
             }
@@ -220,7 +208,7 @@ class FirebaseService : Service() {
             "test/"
                     + Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)
                     + "/"
-                    + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
+                    + getDateTime()
                     + "_"
                     + origin
                     + ".txt"
@@ -238,7 +226,7 @@ class FirebaseService : Service() {
         //synchronized to prevent the off chance that we try to write to a file that is currently
         // being uploaded
         synchronized(this) {
-            fw?.write(csv);
+            logFw?.write(csv)
         }
     }
 
@@ -250,45 +238,41 @@ class FirebaseService : Service() {
     fun uploadLog() {
         synchronized(this) {
             //close the FileWriter
-            fw?.close()
-
+            logFw?.close()
             //upload the log
             // the ?.let syntax is Kotlin shorthand for a null check
-            file?.let { uploadFile(it, "log") }
-
+            logFile?.let { uploadFile(it, "log") }
             //create new File + FileWriter
             val path = applicationContext.getExternalFilesDir(null)
-            file = File(
-                path,
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
-                        + "_log.txt"
-            )
-            fw = FileWriter(file)
+            logFile = File(path,getDateTime() + "_log.txt")
+            logFw = FileWriter(logFile)
 
             temperatureFw?.close()
-            temperatureFile?.let {uploadFile(it, "geckoTemp")}
-            temperatureFile = File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
-                    + "_templog.txt")
+            temperatureFile?.let { uploadFile(it, "geckoTemp") }
+            temperatureFile = File(path, getDateTime() + "_templog.txt")
             temperatureFw = FileWriter(temperatureFile)
 
             headingFw?.close()
-            headingFile?.let {uploadFile(it, "headings")}
-            headingFile = File(path, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH_mm_ss"))
-                    + "_headings.txt")
+            headingFile?.let { uploadFile(it, "headings") }
+            headingFile = File(path, getDateTime() + "_headings.txt")
             headingFw = FileWriter(headingFile)
         }
     }
 
     fun appendTemp(temp: Int) {
         synchronized(this) {
-            temperatureFw?.write(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))+","+temp+"\n")
+            temperatureFw?.write(getDateTime() + "," + temp + "\n")
         }
     }
 
-    fun appendHeading(heading: Double){
-        synchronized(this){
-            headingFw?.write(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))+","+heading+"\n")
+    fun appendHeading(heading: Double) {
+        synchronized(this) {
+            headingFw?.write(getDateTime() + "," + heading + "\n")
         }
+    }
+
+    private fun getDateTime(): String{
+        return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"))
     }
 
     /**
@@ -297,14 +281,15 @@ class FirebaseService : Service() {
      * */
     class ActionListener : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if(intent != null && intent.action != null){
-                if(intent.action.equals(KEY_NOTIFICATION_STOP_ACTION)){
-                    context?.let{
+            if (intent != null && intent.action != null) {
+                if (intent.action.equals(KEY_NOTIFICATION_STOP_ACTION)) {
+                    context?.let {
                         context.stopService(Intent(context, FirebaseService::class.java))
-                        Log.i(TAG,"Stopped FirebaseService")
-                        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        Log.i(TAG, "Stopped FirebaseService")
+                        val notificationManager =
+                            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                         val notificationId = intent.getIntExtra(KEY_NOTIFICATION_ID, -1)
-                        if(notificationId != -1){
+                        if (notificationId != -1) {
                             notificationManager.cancel(notificationId)
                         }
                     }
