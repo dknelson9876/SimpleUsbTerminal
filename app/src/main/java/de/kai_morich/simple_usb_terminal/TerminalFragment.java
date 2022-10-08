@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
@@ -23,7 +24,6 @@ import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -32,7 +32,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -45,6 +44,7 @@ import androidx.appcompat.widget.SwitchCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.gms.location.Priority;
+import com.google.android.material.slider.RangeSlider;
 import com.hoho.android.usbserial.driver.SerialTimeoutException;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialPort;
@@ -220,13 +220,40 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         });
 
         SwitchCompat stopMotorBtn = view.findViewById(R.id.stop_motor_btn);
-        stopMotorBtn.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                Intent stopMotorIntent = new Intent(getContext(), SerialService.ActionListener.class);
-                stopMotorIntent.setAction(SerialService.KEY_STOP_MOTOR_ACTION);
-                stopMotorIntent.putExtra(SerialService.KEY_MOTOR_SWITCH_STATE, isChecked);
-                SerialService.getInstance().sendBroadcast(stopMotorIntent);
+        stopMotorBtn.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            Intent stopMotorIntent = new Intent(getContext(), SerialService.ActionListener.class);
+            stopMotorIntent.setAction(SerialService.KEY_STOP_MOTOR_ACTION);
+            stopMotorIntent.putExtra(SerialService.KEY_MOTOR_SWITCH_STATE, isChecked);
+            SerialService.getInstance().sendBroadcast(stopMotorIntent);
+        });
+
+        RangeSlider headingSlider = view.findViewById(R.id.slider);
+        headingSlider.addOnChangeListener((rangeSlider, value, fromUser) -> {
+            Activity activity = getActivity();
+            if(activity instanceof MainActivity){
+                Intent headingRangeIntent = new Intent(getContext(), SerialService.ActionListener.class);
+                headingRangeIntent.setAction(SerialService.KEY_HEADING_RANGE_ACTION);
+                headingRangeIntent.putExtra(SerialService.KEY_HEADING_RANGE_STATE, rangeSlider.getValues().toArray());
+                SerialService.getInstance().sendBroadcast(headingRangeIntent);
+            }
+        });
+
+        SwitchCompat toggleHeadingBtn = view.findViewById(R.id.heading_range_toggle);
+        toggleHeadingBtn.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            Activity activity = getActivity();
+            if(activity instanceof MainActivity){
+//                ((MainActivity) activity).setHeadingRangeSign(isChecked);
+                Intent headingMinAsMaxIntent = new Intent(getContext(), SerialService.ActionListener.class);
+                headingMinAsMaxIntent.setAction(SerialService.KEY_HEADING_MIN_AS_MAX_ACTION);
+                headingMinAsMaxIntent.putExtra(SerialService.KEY_HEADING_MIN_AS_MAX_STATE, isChecked);
+                SerialService.getInstance().sendBroadcast(headingMinAsMaxIntent);
+            }
+            if(isChecked){
+                headingSlider.setTrackActiveTintList(ColorStateList.valueOf(getResources().getColor(R.color.colorPrimary)));
+                headingSlider.setTrackInactiveTintList(ColorStateList.valueOf(getResources().getColor(R.color.material_on_surface_disabled)));
+            } else {
+                headingSlider.setTrackActiveTintList(ColorStateList.valueOf(getResources().getColor(R.color.material_on_surface_disabled)));
+                headingSlider.setTrackInactiveTintList(ColorStateList.valueOf(getResources().getColor(R.color.colorPrimary)));
             }
         });
 

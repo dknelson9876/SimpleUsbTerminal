@@ -81,6 +81,9 @@ public class SerialService extends Service implements SerialListener {
     private long motorSleepTime = 30000; /*30 s*/
     private boolean rotateCW = true;
     private double lastHeading = 0.0;
+    private static double headingMin = 0.0;
+    private static double headingMax = 360.0;
+    private static boolean treatHeadingMinAsMax = false;
     //in degrees, if the last time the motor moved less than this amount,
     // we assume the motor has stopped us and it is time to turn around
     private final double headingTolerance = 0.1;
@@ -95,6 +98,10 @@ public class SerialService extends Service implements SerialListener {
 
     public static final String KEY_STOP_MOTOR_ACTION = "SerialService.stopMotorAction";
     public static final String KEY_MOTOR_SWITCH_STATE = "SerialService.motorSwitchState";
+    public static final String KEY_HEADING_RANGE_ACTION = "SerialService.headingRangeAction";
+    public static final String KEY_HEADING_RANGE_STATE = "SerialService.headingRangeState";
+    public static final String KEY_HEADING_MIN_AS_MAX_ACTION = "SerialService.headingRangePositiveAction";
+    public static final String KEY_HEADING_MIN_AS_MAX_STATE = "SerialService.headingRangePositiveState";
 
     public static SerialService getInstance() {
         return instance;
@@ -115,11 +122,17 @@ public class SerialService extends Service implements SerialListener {
                     //Did we actually move as a result of trying to move, or is it time to turn around?
                     // (This works because the motor currently being used physically stops itself
                     //  from rotating too far)
-                    if (lastHeading != 0.0
-                            && Math.abs(lastHeading - currentHeading) < headingTolerance) {
-                        rotateCW = !rotateCW;
+//                    if (lastHeading != 0.0
+//                            && Math.abs(lastHeading - currentHeading) < headingTolerance) {
+//                        rotateCW = !rotateCW;
+//                    }
+//                    lastHeading = currentHeading;
+
+                    if(treatHeadingMinAsMax){
+                        //do something
+                    } else {
+                        //do the opposite thing
                     }
-                    lastHeading = currentHeading;
 
                     FirebaseService.Companion.getServiceInstance().appendHeading(currentHeading);
                 }
@@ -135,7 +148,6 @@ public class SerialService extends Service implements SerialListener {
         }
     };
 
-    //TODO: temperature message runnable
     private final Runnable temperatureRunnable = new Runnable() {
         @Override
         public void run() {
@@ -531,6 +543,14 @@ public class SerialService extends Service implements SerialListener {
                     if (isMotorRunning) {
                         SerialService.getInstance().startMotorHandler();
                     }
+                } else if (intent.getAction().equals(KEY_HEADING_RANGE_ACTION)){
+                    float[] headingLimits = intent.getFloatArrayExtra(KEY_HEADING_RANGE_STATE);
+                    if(headingLimits.length == 2){
+                        headingMin = headingLimits[0];
+                        headingMax = headingLimits[1];
+                    }
+                } else if (intent.getAction().equals(KEY_HEADING_MIN_AS_MAX_ACTION)){
+                    treatHeadingMinAsMax = !intent.getBooleanExtra(KEY_HEADING_MIN_AS_MAX_STATE, false);
                 }
             }
         }

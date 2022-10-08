@@ -12,9 +12,13 @@
         <item>LF</item>
         <item>&lt;none&gt;</item>
     </string-array>
-<!--    <string-array name="newline_values">-->
-<!--        <item>''\u000d\u000a</item>-->
-<!--        <item>''\u000a</item>-->
-<!--        <item></item>-->
-<!--    </string-array>-->
+    <array name="initial_slider_values">
+        <item>20.0</item>
+        <item>70.0</item>
+    </array>
+    <!--    <string-array name="newline_values">-->
+    <!--        <item>''\u000d\u000a</item>-->
+    <!--        <item>''\u000a</item>-->
+    <!--        <item></item>-->
+    <!--    </string-array>-->
 </resources>
