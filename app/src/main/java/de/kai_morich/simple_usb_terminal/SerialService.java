@@ -22,6 +22,7 @@ import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -118,6 +119,9 @@ public class SerialService extends Service implements SerialListener {
                     SystemClock.sleep(motorRotateTime);
                     write(TextUtil.fromHexString(BGapi.ROTATE_STOP));
 
+                    String dir = rotateCW ? "CW" : "CCW";
+                    Toast.makeText(getApplicationContext(), "Tried to rotate "+dir, Toast.LENGTH_SHORT).show();
+
                     double currentHeading = SensorHelper.getHeading();
                     //Did we actually move as a result of trying to move, or is it time to turn around?
                     // (This works because the motor currently being used physically stops itself
@@ -128,10 +132,16 @@ public class SerialService extends Service implements SerialListener {
 //                    }
 //                    lastHeading = currentHeading;
 
+                    // This hopefully achieves "if outside the valid range, rotate
+                    // towards the closer bound"
                     if(treatHeadingMinAsMax){
-                        //do something
+                        if(currentHeading > headingMin && currentHeading < headingMax){
+                            rotateCW = Math.abs(currentHeading - headingMin) > Math.abs(currentHeading - headingMax);
+                        }
                     } else {
-                        //do the opposite thing
+                        if(!(currentHeading < headingMin && currentHeading > headingMax)){
+                            rotateCW = Math.abs(currentHeading - headingMax) > Math.abs(currentHeading - headingMin);
+                        }
                     }
 
                     FirebaseService.Companion.getServiceInstance().appendHeading(currentHeading);
@@ -545,7 +555,7 @@ public class SerialService extends Service implements SerialListener {
                     }
                 } else if (intent.getAction().equals(KEY_HEADING_RANGE_ACTION)){
                     float[] headingLimits = intent.getFloatArrayExtra(KEY_HEADING_RANGE_STATE);
-                    if(headingLimits.length == 2){
+                    if(headingLimits != null && headingLimits.length == 2){
                         headingMin = headingLimits[0];
                         headingMax = headingLimits[1];
                     }

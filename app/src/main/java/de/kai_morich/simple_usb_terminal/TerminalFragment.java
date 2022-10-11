@@ -52,6 +52,7 @@ import com.hoho.android.usbserial.driver.UsbSerialProber;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * The UI portion of the app that is displayed while connected to a USB serial device
@@ -233,7 +234,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             if(activity instanceof MainActivity){
                 Intent headingRangeIntent = new Intent(getContext(), SerialService.ActionListener.class);
                 headingRangeIntent.setAction(SerialService.KEY_HEADING_RANGE_ACTION);
-                headingRangeIntent.putExtra(SerialService.KEY_HEADING_RANGE_STATE, rangeSlider.getValues().toArray());
+                // turns out List.ToArray() can only return Object[], so use a custom method for float[]
+                float[] arr = listToArray(rangeSlider.getValues());
+                headingRangeIntent.putExtra(SerialService.KEY_HEADING_RANGE_STATE, arr);
                 SerialService.getInstance().sendBroadcast(headingRangeIntent);
             }
         });
@@ -553,6 +556,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         status("connection lost: " + e.getMessage());
 //        status(Log.getStackTraceString(e));
         disconnect();
+    }
+
+    private float[] listToArray(List<Float> list){
+        float[] toreturn = new float[list.size()];
+        for(int i = 0; i < list.size(); i++){
+            toreturn[i] = list.get(i);
+        }
+        return toreturn;
     }
 
 }
