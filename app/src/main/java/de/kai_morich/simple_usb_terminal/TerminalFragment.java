@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.hardware.usb.UsbDevice;
@@ -24,6 +25,7 @@ import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -52,6 +54,7 @@ import com.hoho.android.usbserial.driver.UsbSerialProber;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -61,6 +64,8 @@ import java.util.List;
  * */
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
+
+    private final String PREFERENCE_FILE = "de.kai_morich.simple_usb_terminal.PREFERENCE_FILE_KEY";
 
     private void onSetupClicked(View view1) {
         send(BGapi.SCANNER_SET_MODE);
@@ -80,13 +85,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private SerialService service;
 
     private TextView receiveText;
+    private RangeSlider headingSlider;
     private BlePacket pendingPacket;
 
     private Connected connected = Connected.False;
     private boolean initialStart = true;
     private boolean truncate = true;
-    private String newline = TextUtil.newline_crlf;
     private int rotatePeriod = 500;
+
+    private SharedPreferences sharedPref;
 
     public TerminalFragment() {
         broadcastReceiver = new BroadcastReceiver() {
@@ -148,6 +155,16 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void onStop() {
         if (service != null && !getActivity().isChangingConfigurations())
             service.detach();
+
+        SharedPreferences.Editor editor = sharedPref.edit();
+        List<Float> values = headingSlider.getValues();
+        editor.putFloat("heading_min", values.get(0))
+                .putFloat("heading_max", values.get(1))
+                .apply();
+
+
+        Log.d("TerminalFragment", "Wrote from onStop: "+values.get(0)+", "+values.get(1));
+
         super.onStop();
     }
 
@@ -199,8 +216,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         service = null;
     }
 
-
-
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_terminal, container, false);
@@ -228,10 +243,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             SerialService.getInstance().sendBroadcast(stopMotorIntent);
         });
 
-        RangeSlider headingSlider = view.findViewById(R.id.slider);
+        headingSlider = view.findViewById(R.id.slider);
+        //load the min/max from local storage
+        sharedPref = getContext().getSharedPreferences(PREFERENCE_FILE, Context.MODE_PRIVATE);
+        float headingMin = sharedPref.getFloat("heading_min", /*default*/20.0f);
+        float headingMax = sharedPref.getFloat("heading_max", /*default*/270.0f);
+        Log.d("TerminalFragment", "Loaded min/max: "+headingMin+", "+headingMax);
+        headingSlider.setValues(Arrays.asList(headingMin, headingMax));
         headingSlider.addOnChangeListener((rangeSlider, value, fromUser) -> {
             Activity activity = getActivity();
             if(activity instanceof MainActivity){
+                //broadcast the new values to SerialService
                 Intent headingRangeIntent = new Intent(getContext(), SerialService.ActionListener.class);
                 headingRangeIntent.setAction(SerialService.KEY_HEADING_RANGE_ACTION);
                 // turns out List.ToArray() can only return Object[], so use a custom method for float[]
@@ -245,7 +267,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         toggleHeadingBtn.setOnCheckedChangeListener((buttonView, isChecked) -> {
             Activity activity = getActivity();
             if(activity instanceof MainActivity){
-//                ((MainActivity) activity).setHeadingRangeSign(isChecked);
                 Intent headingMinAsMaxIntent = new Intent(getContext(), SerialService.ActionListener.class);
                 headingMinAsMaxIntent.setAction(SerialService.KEY_HEADING_MIN_AS_MAX_ACTION);
                 headingMinAsMaxIntent.putExtra(SerialService.KEY_HEADING_MIN_AS_MAX_STATE, isChecked);
