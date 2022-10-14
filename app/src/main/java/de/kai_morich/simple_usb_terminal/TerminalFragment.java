@@ -497,7 +497,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             receiveText.append(tempSpan);
         } else if (BGapi.isKnownResponse(data)) {
             String rsp = BGapi.getResponseName(data);
-            if(rsp != null && !rsp.contains("rotate"))
+            if(rsp != null)
                 receiveText.append(BGapi.getResponseName(data) + '\n');
         } else {
             //until the data has a terminator, assume packets that aren't a known header are data that was truncated
