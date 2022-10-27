@@ -12,8 +12,8 @@ android {
         vectorDrawables.useSupportLibrary true
 
         applicationId "de.kai_morich.simple_usb_terminal"
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "1.0.2"
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8

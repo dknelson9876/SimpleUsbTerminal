@@ -84,7 +84,7 @@ public class SerialService extends Service implements SerialListener {
 
     // rotation variables
     private long motorRotateTime = 500; /*.5 s*/
-    private long motorSleepTime = 30000; /*30 s*/
+    private long motorSleepTime = 5000; /*5 s*/
     private RotationState rotationState = RotationState.IN_BOUNDS_CW;
     private static double headingMin = 0.0;
     private static double headingMax = 360.0;
@@ -118,6 +118,7 @@ public class SerialService extends Service implements SerialListener {
         public void run() {
             try {
                 if (connected) {
+                    double oldHeading = SensorHelper.getHeading();
                     String rotateCommand;
                     if(rotationState == RotationState.IN_BOUNDS_CW || rotationState == RotationState.RETURNING_TO_BOUNDS_CW)
                         rotateCommand = BGapi.ROTATE_CW;
@@ -187,7 +188,8 @@ public class SerialService extends Service implements SerialListener {
                         }
                     }
 
-                    FirebaseService.Companion.getServiceInstance().appendHeading(currentHeading);
+                    FirebaseService.Companion.getServiceInstance().appendHeading(
+                            currentHeading, headingMin, headingMax, treatHeadingMinAsMax, oldHeading, rotationState.toString());
                 }
 
                 //As long as we are to continue moving, schedule this method to be run again
