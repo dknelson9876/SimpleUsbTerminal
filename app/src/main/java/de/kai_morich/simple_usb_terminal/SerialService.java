@@ -20,6 +20,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -84,7 +85,7 @@ public class SerialService extends Service implements SerialListener {
 
     // rotation variables
     private long motorRotateTime = 500; /*.5 s*/
-    private long motorSleepTime = 5000; /*5 s*/
+    private long motorSleepTime = 500; /*5 s*/
     private RotationState rotationState = RotationState.IN_BOUNDS_CW;
     private static double headingMin = 0.0;
     private static double headingMax = 360.0;
@@ -130,7 +131,7 @@ public class SerialService extends Service implements SerialListener {
                     write(TextUtil.fromHexString(BGapi.ROTATE_STOP));
 
 
-                    double currentHeading = SensorHelper.getHeading();
+                    double currentHeading = SensorHelper.getHeading()+180;
                     if (treatHeadingMinAsMax) { //valid range goes through 0, such as 270->30
                         //where --- is out of bounds, ==== is in bounds,
                         //and >-> or <-< marks the current heading and direction
@@ -188,6 +189,14 @@ public class SerialService extends Service implements SerialListener {
                         }
                     }
 
+                    String headingInfo = "currentHeading: "+currentHeading
+                                + "\nmin: "+headingMin+"\nmax: "+headingMax
+                                + "\nminAsMax: "+treatHeadingMinAsMax
+                                + "\nstate: "+rotationState;
+                    Intent intent = new Intent(TerminalFragment.RECEIVE_HEADING_STATS);
+                    intent.putExtra(TerminalFragment.RECEIVE_HEADING_EXTRA, headingInfo);
+                    LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+
                     FirebaseService.Companion.getServiceInstance().appendHeading(
                             currentHeading, headingMin, headingMax, treatHeadingMinAsMax, oldHeading, rotationState.toString());
                 }
@@ -241,6 +250,7 @@ public class SerialService extends Service implements SerialListener {
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
         createNotification();
+
         return START_STICKY;
     }
 

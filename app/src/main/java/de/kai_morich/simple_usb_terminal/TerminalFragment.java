@@ -44,6 +44,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.fragment.app.Fragment;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.location.Priority;
 import com.google.android.material.slider.RangeSlider;
@@ -95,6 +96,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     private SharedPreferences sharedPref;
 
+    private static TerminalFragment instance;
+
+    public static TerminalFragment getInstance(){
+        return instance;
+    }
+
     public TerminalFragment() {
         broadcastReceiver = new BroadcastReceiver() {
             @Override
@@ -105,7 +112,25 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 }
             }
         };
+        instance = this;
     }
+
+    public static final String RECEIVE_HEADING_STATS = "TerminalFragment.RECEIVE_HEADING_STATE";
+    public static final String RECEIVE_HEADING_EXTRA = "TerminalFragment.HEADING_EXTRA";
+    private LocalBroadcastManager bManager;
+
+    private BroadcastReceiver headingReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals(RECEIVE_HEADING_STATS)){
+                String s = intent.getExtras().getString(RECEIVE_HEADING_EXTRA);
+                System.out.println("heading received: "+s);
+                if(receiveText != null){
+                    receiveText.append(s+"\n");
+                }
+            }
+        }
+    };
 
     //region Lifecycle
 
@@ -122,6 +147,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         deviceId = getArguments().getInt("device");
         portNum = getArguments().getInt("port");
         baudRate = getArguments().getInt("baud");
+
+        bManager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(RECEIVE_HEADING_STATS);
+        bManager.registerReceiver(headingReceiver, filter);
     }
 
     /**
@@ -132,6 +162,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         if (connected != Connected.False)
             disconnect();
         getActivity().stopService(new Intent(getActivity(), SerialService.class));
+        bManager.unregisterReceiver(headingReceiver);
         super.onDestroy();
     }
 
