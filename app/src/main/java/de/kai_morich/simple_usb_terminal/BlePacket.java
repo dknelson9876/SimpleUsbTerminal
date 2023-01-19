@@ -62,18 +62,53 @@ public class BlePacket {
      *
      * @return the newly created packet, or null if bytes was too short*/
     public static BlePacket parsePacket(byte[] bytes) {
-        if(bytes.length < 21)
+        //scanner_extended_advertisement_report ->
+        //  A100 0502 bgapi identifier
+        //  00      event_flags
+        //  B1 873A 6934 94     advertiser address
+        //  00      addr type
+        //  FF      bonding
+        //  E1      rssi
+        //  1E      channel
+        //  00 0000 0000 00
+        //  00      target addr type
+        //  00      advertising set identifier
+        //  04      primary phy
+        //  04      secondary phy
+        //  7F      tx power
+        //  0000    periodic interval
+        //  00      data completeness
+        //  29      counter
+        //  E5      ????
+        //  ...DATA
+        // event flags: 0
+        // address: 94:34:69:3A:87:81
+        //  address type: 0
+        // bonding: 255
+        // rssi: -31
+        // channel: 31
+        //  target addr: 0000 0000 0000
+        //  target_addr_type: 0
+        // adv_sid: 0
+        // pri phy: 4
+        // sec phy: 4
+        // tx_power: 127
+        // periodic interval: 0
+        // data completeness: 0
+        // counter: 40
+        // Data: .....
+        if (bytes.length < 32)
             return null;
         String addr = "";
-        for (int i = 10; i > 4; i--) {
+        for(int i = 10; i > 5; i--){
             addr += String.format("%02X", bytes[i]) + ":";
         }
         addr = addr.substring(0, addr.length() - 1);
-        byte packet_type = bytes[4];
-        byte rssi = bytes[17];
-        byte channel = bytes[18];
-        byte[] data = Arrays.copyOfRange(bytes, 21, bytes.length);
+        byte packet_type = 0;
+        byte rssi = bytes[13];
+        byte channel = bytes[14];
 
+        byte[] data = Arrays.copyOfRange(bytes, 32, bytes.length);
         return new BlePacket(addr, rssi, channel, packet_type, data);
     }
 
