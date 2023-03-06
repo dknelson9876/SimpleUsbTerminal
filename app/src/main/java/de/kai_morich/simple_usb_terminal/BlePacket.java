@@ -62,42 +62,28 @@ public class BlePacket {
      *
      * @return the newly created packet, or null if bytes was too short*/
     public static BlePacket parsePacket(byte[] bytes) {
-        //scanner_extended_advertisement_report ->
-        //  A100 0502 bgapi identifier
-        //  00      event_flags
-        //  B1 873A 6934 94     advertiser address
-        //  00      addr type
-        //  FF      bonding
-        //  E1      rssi
-        //  1E      channel
-        //  00 0000 0000 00
-        //  00      target addr type
-        //  00      advertising set identifier
-        //  04      primary phy
-        //  04      secondary phy
-        //  7F      tx power
-        //  0000    periodic interval
-        //  00      data completeness
-        //  29      counter
-        //  E5      ????
-        //  ...DATA
-        // event flags: 0
-        // address: 94:34:69:3A:87:81
-        //  address type: 0
-        // bonding: 255
-        // rssi: -31
-        // channel: 31
-        //  target addr: 0000 0000 0000
-        //  target_addr_type: 0
-        // adv_sid: 0
-        // pri phy: 4
-        // sec phy: 4
-        // tx_power: 127
-        // periodic interval: 0
-        // data completeness: 0
-        // counter: 40
-        // Data: .....
-        if (bytes.length < 32)
+        // scanner_evt_extended_advertisement_report ->
+        // A01B 0502    BGAPI identifier
+        // 00           event_flags
+        // E7 2B43 23A4 60 bd_addr
+        // 00           addr_type
+        // FF           bonding
+        // A5           rssi
+        // 26           channel
+        // 00 0000 0000 00 target_addr
+        // 00           target_addr_type
+        // FF           adv_sid
+        // 04           primary_phy
+        // 01           secondary_phy
+        // 7F           tx_power
+        // 0000         periodic interval
+        // 00           data completeness
+        // D3           counter
+        // ...          data
+
+
+
+        if (bytes.length < 31)
             return null;
         String addr = "";
         for(int i = 10; i > 5; i--){
@@ -108,7 +94,7 @@ public class BlePacket {
         byte rssi = bytes[13];
         byte channel = bytes[14];
 
-        byte[] data = Arrays.copyOfRange(bytes, 32, bytes.length);
+        byte[] data = Arrays.copyOfRange(bytes, 31, bytes.length);
         return new BlePacket(addr, rssi, channel, packet_type, data);
     }
 

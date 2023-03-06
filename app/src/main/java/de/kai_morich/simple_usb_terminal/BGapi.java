@@ -21,10 +21,12 @@ public class BGapi {
         knownResponses.put("scanner_set_timing_rsp", new byte[]{0x20, 0x02, 0x05, 0x01, 0x00, 0x00});
         knownResponses.put("connection_set_default_parameters_rsp", new byte[]{0x20, 0x02, 0x06, 0x00, 0x00, 0x00});
         knownResponses.put("scanner_start_rsp", new byte[]{0x20, 0x02, 0x05, 0x03, 0x00, 0x00});
+        knownResponses.put("scanner_start_failed_rsp", new byte[]{0x20, 0x02, 0x05, 0x03, 0x02, 0x00});
         knownResponses.put("scanner_stop_rsp", new byte[]{0x20, 0x02, 0x05, 0x05, 0x00, 0x00});
         knownResponses.put("message_rotate_cw_rsp", new byte[]{0x20, 0x04, (byte) 0xFF, 0x00, 0x00, 0x00, 0x01, 0x01});
         knownResponses.put("message_rotate_ccw_rsp", new byte[]{0x20, 0x04, (byte) 0xFF, 0x00, 0x00, 0x00, 0x01, 0x02});
         knownResponses.put("message_rotate_stop_rsp", new byte[]{0x20, 0x04, (byte) 0xFF, 0x00, 0x00, 0x00, 0x01, 0x03});
+        knownResponses.put("message_related_rsp???", new byte[]{0x20, 0x03, (byte) 0xFF, 0x00, 0x01, 0x00, 0x00});
         knownResponses.put("message_system_boot", new byte[]{(byte) 0xA0, 0x12, 0x01, 0x00, 0x03, 0x00, 0x03, 0x00, 0x02, 0x00,
                 (byte)0x96, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, (byte)0xE0, 0x5C, 0x35, 0x51});
 
@@ -51,9 +53,10 @@ public class BGapi {
 
     public static boolean isScanReportEvent(byte[] bytes) {
         // Note: the casting of 0xA1 is necessary because Java thinks that signed hex should exist?
-        //      and as a result does funny things
-        return bytes.length > 3 && bytes[0] == (byte) 0xA1 && bytes[1] == 0x00
-                && bytes[2] == 0x05 && bytes[3] == 0x01;
+        //      and as a result does funny things. This only applies to A0 because the other values
+        //      do not change if treated as signed
+        return bytes.length > 3 && bytes[0] == (byte) 0xA0 && bytes[1] == 0x1B
+                && bytes[2] == 0x05 && bytes[3] == 0x02;
     }
 
     public static boolean isTemperatureResponse(byte[] bytes) {
