@@ -75,7 +75,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void onStartClicked(View v) {
-        send(BGapi.SCANNER_START);
+        send(BGapi.Command.SCANNER_START.getValue());
     }
 
     private enum Connected {False, Pending, True}
@@ -316,7 +316,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         startBtn.setOnClickListener(this::onStartClicked);
 
         View stopBtn = view.findViewById(R.id.stop_btn);
-        stopBtn.setOnClickListener(v -> send(BGapi.SCANNER_STOP));
+        stopBtn.setOnClickListener(v -> send(BGapi.Command.SCANNER_STOP.getValue()));
 
         Spinner gps_priority = view.findViewById(R.id.gps_priority_spinner);
         String[] gps_options = {"Power Saving", "Balanced", "High Accuracy"};
@@ -377,14 +377,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             item.setChecked(truncate);
             return true;
         } else if (id == R.id.manualCW) {
-            send(BGapi.ROTATE_CW);
+            send(BGapi.Command.ROTATE_CW.getValue());
             SystemClock.sleep(500);
-            send(BGapi.ROTATE_STOP);
+            send(BGapi.Command.ROTATE_STOP.getValue());
             return true;
         } else if (id == R.id.manualCCW) {
-            send(BGapi.ROTATE_CCW);
+            send(BGapi.Command.ROTATE_CCW.getValue());
             SystemClock.sleep(500);
-            send(BGapi.ROTATE_STOP);
+            send(BGapi.Command.ROTATE_STOP.getValue());
             return true;
         } else if (id == R.id.editRotate) {
             //TODO actually change the period in SerialService
@@ -499,8 +499,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 //            TextUtil.toHexString(sb, newline.getBytes());
             msg = sb.toString();
             data = TextUtil.fromHexString(msg);
-            if (BGapi.isCommand(str)) {
-                msg = BGapi.getCommandName(str);
+            if (BGapi.Command.isCommand(str)) {
+                msg = BGapi.Command.getCommandName(str);
             }
             SpannableStringBuilder spn = new SpannableStringBuilder(msg + '\n');
             spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -547,10 +547,10 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             SpannableStringBuilder tempSpan = new SpannableStringBuilder("Got temp: "+temperature+"\n");
             tempSpan.setSpan(new ForegroundColorSpan(Color.rgb(255, 120, 0)), 0, tempSpan.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             receiveText.append(tempSpan);
-        } else if (BGapi.isKnownResponse(data)) {
-            String rsp = BGapi.getResponseName(data);
+        } else if (BGapi.Response.isKnownResponse(data)) {
+            String rsp = BGapi.Response.getResponseName(data);
             if(rsp != null)
-                receiveText.append(BGapi.getResponseName(data) + '\n');
+                receiveText.append(BGapi.Response.getResponseName(data) + '\n');
         } else {
             //until the data has a terminator, assume packets that aren't a known header are data that was truncated
             if (pendingPacket != null)

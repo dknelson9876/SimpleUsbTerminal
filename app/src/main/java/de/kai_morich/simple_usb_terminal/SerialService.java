@@ -122,13 +122,13 @@ public class SerialService extends Service implements SerialListener {
                     double oldHeading = SensorHelper.getHeading();
                     String rotateCommand;
                     if(rotationState == RotationState.IN_BOUNDS_CW || rotationState == RotationState.RETURNING_TO_BOUNDS_CW)
-                        rotateCommand = BGapi.ROTATE_CW;
+                        rotateCommand = BGapi.Command.ROTATE_CW.getValue();
                     else
-                        rotateCommand = BGapi.ROTATE_CCW;
+                        rotateCommand = BGapi.Command.ROTATE_CCW.getValue();
 
                     write(TextUtil.fromHexString(rotateCommand));
                     SystemClock.sleep(motorRotateTime);
-                    write(TextUtil.fromHexString(BGapi.ROTATE_STOP));
+                    write(TextUtil.fromHexString(BGapi.Command.ROTATE_STOP.getValue()));
 
 
                     double currentHeading = SensorHelper.getHeading()+180;
@@ -216,7 +216,7 @@ public class SerialService extends Service implements SerialListener {
         @Override
         public void run() {
             try {
-                write(TextUtil.fromHexString(BGapi.GET_TEMP));
+                write(TextUtil.fromHexString(BGapi.Command.GET_TEMP.getValue()));
                 Toast.makeText(getApplicationContext(), "Asked for temp", Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
                 Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -509,18 +509,18 @@ public class SerialService extends Service implements SerialListener {
                 //parse and store somewhere (FirebaseService?)
                 int temp = data[data.length - 2];
                 FirebaseService.Companion.getServiceInstance().appendTemp(temp);
-            } else if ("message_system_boot".equals(BGapi.getResponseName(data))) {
+            } else if ("message_system_boot".equals(BGapi.Response.getResponseName(data))) {
                 //TODO: this is definitely just a bandaid for the real problem of the gecko rebooting
                 //the gecko mysteriously reset, so resend the setup and start commands
                 try {
 //                    write(TextUtil.fromHexString(BGapi.SCANNER_SET_MODE));
 //                    write(TextUtil.fromHexString(BGapi.SCANNER_SET_TIMING));
 //                    write(TextUtil.fromHexString(BGapi.CONNECTION_SET_PARAMETERS));
-                    write(TextUtil.fromHexString(BGapi.SCANNER_START));
+                    write(TextUtil.fromHexString(BGapi.Command.SCANNER_START.getValue()));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            } else if (!BGapi.isKnownResponse(data)) {
+            } else if (!BGapi.Response.isKnownResponse(data)) {
                 //If the data isn't any kind of thing we can recognize, assume it's incomplete
 
                 //If there's already partial data waiting
