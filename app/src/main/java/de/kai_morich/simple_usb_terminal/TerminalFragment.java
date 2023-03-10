@@ -69,6 +69,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private final String PREFERENCE_FILE = "de.kai_morich.simple_usb_terminal.PREFERENCE_FILE_KEY";
 
     private void onSetupClicked(View view1) {
+        // setup is not needed anymore, including it in Command.SCANNER_START is enough
 //        send(BGapi.SCANNER_SET_MODE);
 //        send(BGapi.SCANNER_SET_TIMING);
 //        send(BGapi.CONNECTION_SET_PARAMETERS);
