@@ -20,7 +20,6 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -85,7 +84,7 @@ public class SerialService extends Service implements SerialListener {
 
     // rotation variables
     private long motorRotateTime = 500; /*.5 s*/
-    private long motorSleepTime = 500; /*5 s*/
+    private long motorSleepTime = 5000; /*5 s*/
     private RotationState rotationState = RotationState.IN_BOUNDS_CW;
     private static double headingMin = 0.0;
     private static double headingMax = 360.0;
@@ -193,9 +192,9 @@ public class SerialService extends Service implements SerialListener {
                                 + "\nmin: "+headingMin+"\nmax: "+headingMax
                                 + "\nminAsMax: "+treatHeadingMinAsMax
                                 + "\nstate: "+rotationState;
-                    Intent intent = new Intent(TerminalFragment.RECEIVE_HEADING_STATS);
-                    intent.putExtra(TerminalFragment.RECEIVE_HEADING_EXTRA, headingInfo);
-                    LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+                    Intent intent = new Intent(Constants.INTENT_ACTION_HEADING_STATS);
+                    intent.putExtra(Constants.EXTRA_HEADING_STATS, headingInfo);
+                    sendBroadcast(intent);
 
                     FirebaseService.Companion.getServiceInstance().appendHeading(
                             currentHeading, headingMin, headingMax, treatHeadingMinAsMax, oldHeading, rotationState.toString());

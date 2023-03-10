@@ -2,6 +2,8 @@ package de.kai_morich.simple_usb_terminal;
 
 class Constants {
 
+    public static final String INTENT_ACTION_HEADING_STATS = "TerminalFragment.RECEIVE_HEADING_STATE";
+    public static final String EXTRA_HEADING_STATS = "TerminalFragment.HEADING_EXTRA";
     // values have to be globally unique
     static final String INTENT_ACTION_GRANT_USB = BuildConfig.APPLICATION_ID + ".GRANT_USB";
     static final String INTENT_ACTION_DISCONNECT = BuildConfig.APPLICATION_ID + ".Disconnect";

@@ -44,7 +44,6 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.fragment.app.Fragment;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.location.Priority;
 import com.google.android.material.slider.RangeSlider;
@@ -62,9 +61,11 @@ import java.util.List;
  * The UI portion of the app that is displayed while connected to a USB serial device
  * There's a lot of non-UI logic still in here that needs to be cleaned up and/or removed
  * entirely as we won't actually use it
- * */
+ */
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
+
+    private enum Connected {False, Pending, True}
 
     private final String PREFERENCE_FILE = "de.kai_morich.simple_usb_terminal.PREFERENCE_FILE_KEY";
 
@@ -78,9 +79,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         send(BGapi.Command.SCANNER_START.getValue());
     }
 
-    private enum Connected {False, Pending, True}
 
-    private final BroadcastReceiver broadcastReceiver;
     private int deviceId, portNum, baudRate;
     private UsbSerialPort usbSerialPort;
     private SerialService service;
@@ -96,37 +95,24 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     private SharedPreferences sharedPref;
 
-    private static TerminalFragment instance;
-
-    public static TerminalFragment getInstance(){
-        return instance;
-    }
-
-    public TerminalFragment() {
-        broadcastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (Constants.INTENT_ACTION_GRANT_USB.equals(intent.getAction())) {
-                    Boolean granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
-                    connect(granted);
-                }
-            }
-        };
-        instance = this;
-    }
-
-    public static final String RECEIVE_HEADING_STATS = "TerminalFragment.RECEIVE_HEADING_STATE";
-    public static final String RECEIVE_HEADING_EXTRA = "TerminalFragment.HEADING_EXTRA";
-    private LocalBroadcastManager bManager;
-
-    private BroadcastReceiver headingReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver usbBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (intent.getAction().equals(RECEIVE_HEADING_STATS)){
-                String s = intent.getExtras().getString(RECEIVE_HEADING_EXTRA);
-                System.out.println("heading received: "+s);
-                if(receiveText != null){
-                    receiveText.append(s+"\n");
+            if (Constants.INTENT_ACTION_GRANT_USB.equals(intent.getAction())) {
+                Boolean granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
+                connect(granted);
+            }
+        }
+    };
+
+    private final BroadcastReceiver headingReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals(Constants.INTENT_ACTION_HEADING_STATS)) {
+                String s = intent.getExtras().getString(Constants.EXTRA_HEADING_STATS);
+                System.out.println("heading received: " + s);
+                if (receiveText != null) {
+                    receiveText.append(s + "\n");
                 }
             }
         }
@@ -138,7 +124,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
      * Inherited from Fragment. One of the first methods that the system will call
      * after the constructor. Retrieves the information about the device to connect to
      * that was sent over by the DevicesFragment
-     * */
+     */
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -148,43 +134,42 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         portNum = getArguments().getInt("port");
         baudRate = getArguments().getInt("baud");
 
-        bManager = LocalBroadcastManager.getInstance(getActivity().getApplicationContext());
         IntentFilter filter = new IntentFilter();
-        filter.addAction(RECEIVE_HEADING_STATS);
-        bManager.registerReceiver(headingReceiver, filter);
+        filter.addAction(Constants.INTENT_ACTION_HEADING_STATS);
+        requireContext().registerReceiver(headingReceiver, filter);
     }
 
     /**
      * Inherited from Fragment. Called by the system when the app gets closed
-     * */
+     */
     @Override
     public void onDestroy() {
         if (connected != Connected.False)
             disconnect();
-        getActivity().stopService(new Intent(getActivity(), SerialService.class));
-        bManager.unregisterReceiver(headingReceiver);
+        requireActivity().stopService(new Intent(getActivity(), SerialService.class));
+        requireContext().unregisterReceiver(headingReceiver);
         super.onDestroy();
     }
 
     /**
      * Inherited from Fragment. Called by the system
-     * */
+     */
     @Override
     public void onStart() {
         super.onStart();
         if (service != null)
             service.attach(this);
         else
-            getActivity().startService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
+            requireActivity().startService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
     }
 
     /**
      * Inherited from Fragment. Called by the system. Unsubscribes from messages from the serial device
      * as this Fragment is no longer being displayed
-     * */
+     */
     @Override
     public void onStop() {
-        if (service != null && !getActivity().isChangingConfigurations())
+        if (service != null && !requireActivity().isChangingConfigurations())
             service.detach();
 
         SharedPreferences.Editor editor = sharedPref.edit();
@@ -194,7 +179,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 .apply();
 
 
-        Log.d("TerminalFragment", "Wrote from onStop: "+values.get(0)+", "+values.get(1));
+        Log.d("TerminalFragment", "Wrote from onStop: " + values.get(0) + ", " + values.get(1));
 
         super.onStop();
     }
@@ -204,13 +189,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onAttach(@NonNull Activity activity) {
         super.onAttach(activity);
-        getActivity().bindService(new Intent(getActivity(), SerialService.class), this, Context.BIND_AUTO_CREATE);
+        requireActivity().bindService(new Intent(getActivity(), SerialService.class), this, Context.BIND_AUTO_CREATE);
     }
 
     @Override
     public void onDetach() {
         try {
-            getActivity().unbindService(this);
+            requireActivity().unbindService(this);
         } catch (Exception ignored) {
         }
         super.onDetach();
@@ -219,16 +204,16 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onResume() {
         super.onResume();
-        getActivity().registerReceiver(broadcastReceiver, new IntentFilter(Constants.INTENT_ACTION_GRANT_USB));
+        requireActivity().registerReceiver(usbBroadcastReceiver, new IntentFilter(Constants.INTENT_ACTION_GRANT_USB));
         if (initialStart && service != null) {
             initialStart = false;
-            getActivity().runOnUiThread(this::connect);
+            requireActivity().runOnUiThread(this::connect);
         }
     }
 
     @Override
     public void onPause() {
-        getActivity().unregisterReceiver(broadcastReceiver);
+        requireActivity().unregisterReceiver(usbBroadcastReceiver);
         super.onPause();
     }
 
@@ -238,7 +223,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         service.attach(this);
         if (initialStart && isResumed()) {
             initialStart = false;
-            getActivity().runOnUiThread(this::connect);
+            requireActivity().runOnUiThread(this::connect);
         }
     }
 
@@ -279,11 +264,11 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         sharedPref = getContext().getSharedPreferences(PREFERENCE_FILE, Context.MODE_PRIVATE);
         float headingMin = sharedPref.getFloat("heading_min", /*default*/20.0f);
         float headingMax = sharedPref.getFloat("heading_max", /*default*/270.0f);
-        Log.d("TerminalFragment", "Loaded min/max: "+headingMin+", "+headingMax);
+        Log.d("TerminalFragment", "Loaded min/max: " + headingMin + ", " + headingMax);
         headingSlider.setValues(Arrays.asList(headingMin, headingMax));
         headingSlider.addOnChangeListener((rangeSlider, value, fromUser) -> {
             Activity activity = getActivity();
-            if(activity instanceof MainActivity){
+            if (activity instanceof MainActivity) {
                 //broadcast the new values to SerialService
                 Intent headingRangeIntent = new Intent(getContext(), SerialService.ActionListener.class);
                 headingRangeIntent.setAction(SerialService.KEY_HEADING_RANGE_ACTION);
@@ -297,13 +282,13 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         SwitchCompat toggleHeadingBtn = view.findViewById(R.id.heading_range_toggle);
         toggleHeadingBtn.setOnCheckedChangeListener((buttonView, isChecked) -> {
             Activity activity = getActivity();
-            if(activity instanceof MainActivity){
+            if (activity instanceof MainActivity) {
                 Intent headingMinAsMaxIntent = new Intent(getContext(), SerialService.ActionListener.class);
                 headingMinAsMaxIntent.setAction(SerialService.KEY_HEADING_MIN_AS_MAX_ACTION);
                 headingMinAsMaxIntent.putExtra(SerialService.KEY_HEADING_MIN_AS_MAX_STATE, isChecked);
                 SerialService.getInstance().sendBroadcast(headingMinAsMaxIntent);
             }
-            if(isChecked){
+            if (isChecked) {
                 headingSlider.setTrackActiveTintList(ColorStateList.valueOf(getResources().getColor(R.color.colorPrimary)));
                 headingSlider.setTrackInactiveTintList(ColorStateList.valueOf(getResources().getColor(R.color.material_on_surface_disabled)));
             } else {
@@ -327,8 +312,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 Activity activity = getActivity();
-                if(activity instanceof MainActivity) {
-                    switch(position){
+                if (activity instanceof MainActivity) {
+                    switch (position) {
                         case 0:
                             ((MainActivity) activity).updateLocationPriority(Priority.PRIORITY_LOW_POWER);
                             break;
@@ -356,7 +341,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     /**
      * Inherited from Fragment. The Options menu is the 3 dots in the top right corner
-     * */
+     */
     @Override
     public void onCreateOptionsMenu(@NonNull Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.menu_terminal, menu);
@@ -422,7 +407,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
      * that were passed when this Fragment was started
      * But some of this seems like duplicate logic from DevicesFragment, so this might be able
      * to be reduced
-     * */
+     */
     private void connect(Boolean permissionGranted) {
         UsbDevice device = null;
         UsbManager usbManager = (UsbManager) getActivity().getSystemService(Context.USB_SERVICE);
@@ -484,7 +469,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     /**
      * Send a String to the currently connected serial device. Returns immediately if no
      * device is connected. Additionally appends the sent information to the text on screen
-     * */
+     */
     private void send(String str) {
         if (connected != Connected.True) {
             Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
@@ -517,7 +502,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
      * Parse the bytes that were received from the serial device. If those bytes are recognized
      * as a message that is part of BGAPI, prints the message name rather than the bytes
      * If the message is a packet, parse it into a packet object
-     * */
+     */
     private void receive(byte[] data) {
 //        SpannableStringBuilder span = new SpannableStringBuilder("##"+TextUtil.toHexString(data)+"\n");
 //        span.setSpan(new ForegroundColorSpan(Color.CYAN), 0, span.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -542,14 +527,14 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 return;
 
             pendingPacket = BlePacket.parsePacket(data);
-        } else if(BGapi.isTemperatureResponse(data)){
-            int temperature = data[data.length-2];
-            SpannableStringBuilder tempSpan = new SpannableStringBuilder("Got temp: "+temperature+"\n");
+        } else if (BGapi.isTemperatureResponse(data)) {
+            int temperature = data[data.length - 2];
+            SpannableStringBuilder tempSpan = new SpannableStringBuilder("Got temp: " + temperature + "\n");
             tempSpan.setSpan(new ForegroundColorSpan(Color.rgb(255, 120, 0)), 0, tempSpan.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             receiveText.append(tempSpan);
         } else if (BGapi.Response.isKnownResponse(data)) {
             String rsp = BGapi.Response.getResponseName(data);
-            if(rsp != null)
+            if (rsp != null)
                 receiveText.append(BGapi.Response.getResponseName(data) + '\n');
         } else {
             //until the data has a terminator, assume packets that aren't a known header are data that was truncated
@@ -558,17 +543,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }
 
         //If the text in receiveText is getting too large to be reasonable, cut it off
-        if(receiveText.getText().length() > 8000){
+        if (receiveText.getText().length() > 8000) {
             CharSequence text = receiveText.getText();
             int length = text.length();
-            receiveText.setText(text.subSequence(length-2000, length));
+            receiveText.setText(text.subSequence(length - 2000, length));
         }
 
     }
 
     /**
      * Print to the textview in a different color so that it stands out
-     * */
+     */
     void status(String str) {
         SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
         spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -610,9 +595,9 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         disconnect();
     }
 
-    private float[] listToArray(List<Float> list){
+    private float[] listToArray(List<Float> list) {
         float[] toreturn = new float[list.size()];
-        for(int i = 0; i < list.size(); i++){
+        for (int i = 0; i < list.size(); i++) {
             toreturn[i] = list.get(i);
         }
         return toreturn;
