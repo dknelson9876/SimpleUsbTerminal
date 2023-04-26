@@ -49,7 +49,7 @@ public class SerialService extends Service implements SerialListener {
         IN_BOUNDS_CW,
         IN_BOUNDS_CCW,
         RETURNING_TO_BOUNDS_CW,
-        RETURNING_TO_BOUNDS_CCW
+        RETURNING_TO_BOUNDS_CCW,
     }
 
     class SerialBinder extends Binder {
@@ -115,8 +115,10 @@ public class SerialService extends Service implements SerialListener {
 
     // The packaged code sample that moves the motor and checks if it is time to turn around
     private final Runnable rotateRunnable = new Runnable() {
+
         @Override
         public void run() {
+
             try {
                 if (connected) {
                     double oldHeading = SensorHelper.getHeading();
@@ -139,24 +141,32 @@ public class SerialService extends Service implements SerialListener {
                         switch (rotationState) { //switch on what state we used to make the previous rotation
                             case IN_BOUNDS_CW: //0<=== >-> ==|-----|====>360
                                 // turn around once we pass the min
-                                if (currentHeading >= headingMin && currentHeading < headingMax)
+                                if (OutsideBounds(currentHeading)) {
                                     rotationState = RotationState.RETURNING_TO_BOUNDS_CCW;
+                                }
                                 break;
                             case IN_BOUNDS_CCW: // 0<====|----|==== <-< ===>360
                                 // turn back around once we pass the max
-                                if (currentHeading <= headingMax && currentHeading > headingMin)
+                                if (OutsideBounds(currentHeading)) {
                                     rotationState = RotationState.RETURNING_TO_BOUNDS_CW;
+                                }
                                 break;
                             case RETURNING_TO_BOUNDS_CW: // 0<===|--- >-> |====>360
                                 // set to back in bounds after passing the max
                                 //   and continue CW
-                                if (currentHeading > headingMax)
+                                if (InsideUpperBound(currentHeading)) {
                                     rotationState = RotationState.IN_BOUNDS_CW;
+                                } else if (InsideLowerBound(currentHeading)) {     // if for some reason it gets off,
+                                    rotationState = RotationState.IN_BOUNDS_CCW;   // make sure it knows it's inside bounds
+                                }
                                 break;
                             case RETURNING_TO_BOUNDS_CCW: // 0<===| <-< ---|====>360
                                 // set back in bounds after passing the min
-                                if (currentHeading <= headingMin)
+                                if (InsideLowerBound(currentHeading)) {
                                     rotationState = RotationState.IN_BOUNDS_CCW;
+                                } else if (InsideUpperBound(currentHeading)) {     // if for some reason it gets off,
+                                    rotationState = RotationState.IN_BOUNDS_CW;    //make sure it knows it's inside bounds
+                                }
                                 break;
                         }
                     } else { //valid range goes around 0, such as 90->120
@@ -166,25 +176,37 @@ public class SerialService extends Service implements SerialListener {
                         switch (rotationState) {
                             case IN_BOUNDS_CW: // 0<--|====== >-> ====|-->360
                                 // turn around once we pass the max
-                                if (currentHeading >= headingMax)
+                                if (OutsideUpperBound(currentHeading)) {
                                     rotationState = RotationState.RETURNING_TO_BOUNDS_CCW;
+                                } else if (OutsideLowerBound(currentHeading)) {             // if it gets off, make sure it knows it's outside bounds
+                                    rotationState = RotationState.RETURNING_TO_BOUNDS_CW;   // and set it on a course towards what is most likely the nearest bound
+                                }
                                 break;
                             case IN_BOUNDS_CCW: // 0<--|== <-< ======|-->360
                                 // turn around once we pass the min
-                                if(currentHeading <= headingMin)
+                                if(OutsideLowerBound(currentHeading)) {
                                     rotationState = RotationState.RETURNING_TO_BOUNDS_CW;
+                                } else if (OutsideUpperBound(currentHeading)) {             // if it gets off, make sure it knows it's outside bounds
+                                    rotationState = RotationState.RETURNING_TO_BOUNDS_CCW;  // and set it on a course towards what is most likely the nearest bound
+                                }
                                 break;
                             case RETURNING_TO_BOUNDS_CW: // 0<-- >-> |========|-->360
                                 // set to back in bounds after passing the min
                                 //   and continue CW
-                                if(currentHeading > headingMin)
+                                if(InsideBounds(currentHeading)) {
                                     rotationState = RotationState.IN_BOUNDS_CW;
+                                } else if (OutsideUpperBound(currentHeading)) {             // if it gets off, make sure it knows it's outside the other bound
+                                    rotationState = RotationState.RETURNING_TO_BOUNDS_CCW;  // and set it on a course towards what is most likely the nearest bound
+                                }
                                 break;
                             case RETURNING_TO_BOUNDS_CCW: // 0<--|======| <-< -->360
                                 // set back to in bounds after passing the max
                                 //   and continue CCW
-                                if(currentHeading < headingMax)
+                                if(InsideBounds(currentHeading)) {
                                     rotationState = RotationState.IN_BOUNDS_CCW;
+                                } else if (OutsideLowerBound(currentHeading)) {             // if it gets off, make sure it knows it's outside the other bound
+                                    rotationState = RotationState.RETURNING_TO_BOUNDS_CW;   // and set it on a course towards what is most likely the nearest bound
+                                }
                                 break;
                         }
                     }
@@ -209,7 +231,36 @@ public class SerialService extends Service implements SerialListener {
                 Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
                 e.printStackTrace();
             }
+
+
         }
+
+        // for treatHeadingMinAsMax == false
+        private boolean InsideBounds(double heading) {
+            if(heading <= headingMax && heading >= headingMin) { return true; } else { return false; }
+        }
+
+        private boolean OutsideLowerBound(double heading) {
+            if(heading >= 0 && heading < headingMin) {return true; } else { return false; }
+        }
+
+        private boolean OutsideUpperBound(double heading) {
+            if(heading > headingMax && heading < 360) {return true; } else { return false; }
+        }
+
+        // for treatHeadingMinAsMax == true
+        private boolean InsideUpperBound(double heading) {
+            if(heading >= headingMax && heading < 360) {return true; } else { return false; }
+        }
+
+        private boolean InsideLowerBound(double heading) {
+            if(heading >= 0 && heading <= headingMin) {return true; } else { return false; }
+        }
+
+        private boolean OutsideBounds(double heading) {
+            if(heading > headingMin && heading < headingMax) {return true; } else { return false; }
+        }
+
     };
 
     private final Runnable temperatureRunnable = new Runnable() {

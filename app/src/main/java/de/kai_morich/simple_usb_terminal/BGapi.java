@@ -55,7 +55,7 @@ public class BGapi {
         // Note: the casting of 0xA1 is necessary because Java thinks that signed hex should exist?
         //      and as a result does funny things. This only applies to A0 because the other values
         //      do not change if treated as signed
-        return bytes.length > 3 && bytes[0] == (byte) 0xA0 && bytes[1] == 0x1B
+        return bytes.length > 3 && bytes[0] == (byte) 0xA1 && bytes[1] == 0x00
                 && bytes[2] == 0x05 && bytes[3] == 0x02;
     }
 
