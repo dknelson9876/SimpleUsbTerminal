@@ -86,7 +86,7 @@ public class BlePacket {
         if (bytes.length < 31)
             return null;
         String addr = "";
-        for(int i = 10; i > 5; i--){
+        for(int i = 9; i > 4; i--){
             addr += String.format("%02X", bytes[i]) + ":";
         }
         addr = addr.substring(0, addr.length() - 1);
