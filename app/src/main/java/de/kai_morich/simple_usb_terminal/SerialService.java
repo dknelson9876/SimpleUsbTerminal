@@ -52,6 +52,8 @@ public class SerialService extends Service implements SerialListener {
         RETURNING_TO_BOUNDS_CCW,
     }
 
+    private android.os.PowerManager.WakeLock wakeLock = null;
+
     class SerialBinder extends Binder {
         SerialService getService() {
             return SerialService.this;
@@ -299,8 +301,23 @@ public class SerialService extends Service implements SerialListener {
      */
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        super.onStartCommand(intent, flags, startId);
+        String start_id = String.valueOf(startId);
+        Log.i("idk", "onStartCommand executed with startId: " + start_id);
+        if (intent != null) {
+            String action = intent.getAction();
+            Log.i("idk", "using an intent with action " + action);
+        } else {
+            Log.i("idk", "with a null intent. It has been probably restarted by the system.");
+        }
+
+        wakeLock = ((android.os.PowerManager) getSystemService(Context.POWER_SERVICE))
+                .newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK,
+                        "EndlessService::lock");
+        wakeLock.acquire();
+
+
         createNotification();
+
 
         return START_STICKY;
     }
