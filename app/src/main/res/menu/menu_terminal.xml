@@ -38,6 +38,15 @@
     <item
         android:id="@+id/manualCCW"
         android:title="Rotate CCW" />
+    <item
+        android:id="@+id/manualSlow"
+        android:title="Rotate Slow" />
+    <item
+        android:id="@+id/manualFast"
+        android:title="Rotate Fast" />
+    <item
+        android:id="@+id/manualStop"
+        android:title="Rotate Stop" />
 
     <item
         android:id="@+id/autoRotate"

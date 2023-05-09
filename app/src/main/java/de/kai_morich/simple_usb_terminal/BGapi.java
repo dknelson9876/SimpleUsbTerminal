@@ -38,7 +38,9 @@ public class BGapi {
         commands.put("message_rotate_cw", "2002FF000101");
         commands.put("message_rotate_ccw", "2002FF000102");
         commands.put("message_rotate_stop", "2002FF000103");
-        commands.put("message_get_temp", "2002FF000104");
+        commands.put("message_rotate_slow", "2002FF000104");
+        commands.put("message_rotate_fast", "2002FF000105");
+        commands.put("message_get_temp", "2002FF000106");
     }
 
     public static final String SCANNER_SET_MODE = commands.get("scanner_set_mode");
@@ -49,6 +51,8 @@ public class BGapi {
     public static final String ROTATE_CW = commands.get("message_rotate_cw");
     public static final String ROTATE_CCW = commands.get("message_rotate_ccw");
     public static final String ROTATE_STOP = commands.get("message_rotate_stop");
+    public static final String ROTATE_SLOW = commands.get("message_rotate_slow");
+    public static final String ROTATE_FAST = commands.get("message_rotate_fast");
     public static final String GET_TEMP = commands.get("message_get_temp");
 
     public static boolean isScanReportEvent(byte[] bytes) {
