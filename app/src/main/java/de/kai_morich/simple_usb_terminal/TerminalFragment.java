@@ -379,15 +379,25 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             return true;
         } else if (id == R.id.manualCW) {
             send(BGapi.ROTATE_CW);
-            SystemClock.sleep(500);
-            send(BGapi.ROTATE_STOP);
+            //SystemClock.sleep(500);
+            //send(BGapi.ROTATE_STOP);
             return true;
         } else if (id == R.id.manualCCW) {
             send(BGapi.ROTATE_CCW);
-            SystemClock.sleep(500);
+            //SystemClock.sleep(500);
+            //send(BGapi.ROTATE_STOP);
+            return true;
+        } else if (id == R.id.manualSlow) {
+            send(BGapi.ROTATE_SLOW);
+            return true;
+        } else if (id == R.id.manualFast) {
+            send(BGapi.ROTATE_FAST);
+            return true;
+        } else if (id == R.id.manualStop) {
             send(BGapi.ROTATE_STOP);
             return true;
-        } else if (id == R.id.editRotate) {
+        }
+        else if (id == R.id.editRotate) {
             //TODO actually change the period in SerialService
             AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
             builder.setTitle("New Rotation Period UNUSED");
